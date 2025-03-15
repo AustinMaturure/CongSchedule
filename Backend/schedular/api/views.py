@@ -56,10 +56,49 @@ def makeSchedule(request):
             parts = re.findall(spattern, students.group(0))
 
     
-
             for part in parts:
                 print(f'{part[0]}: {part[2]}')
 
+            lacpattern =  re.compile(r'Living as Christians(.*)\d{2}:\d{2}Review', re.DOTALL)
+            lac = re.search(lacpattern, song[1])
+    
+
+            lacspattern = re.compile(r'(Song \d{1,3} - [^0-9]+)(?=\d{2}:\d{2}(\d+))', re.DOTALL)
+
+            lacs = re.search(lacspattern, lac.group(1))
+            print(f'Las Song: {lacs.group(1)}')
+            
+
+            lactalkspattern = re.compile(r'(\d{2}:\d{2}\d+)(.*?)\(\d+ min\.\)([A-Za-z\s]+)', re.DOTALL)
+            lactalks = re.findall(lactalkspattern, lac.group(1))
+
+            if lactalks:
+                for  talk in lactalks:
+                    if "Congregation Bible Study" in talk[1]:
+                        bible_study = talk[2]  # Speaker information part
+                        
+                        # Regex pattern to extract the conductor
+                        conducterpattern = re.compile(r'Conductor([^0-9]+)(?=Reader)', re.DOTALL)
+                        conducter = re.search(conducterpattern, bible_study)
+                        
+      
+                        readerpattern = re.compile(r'Reader([^0-9]+)$', re.DOTALL)
+                        reader = re.search(readerpattern, bible_study)
+                        
+           
+                        if conducter and reader:
+                            print(f'Congregation Bible Study: Conductor - {conducter.group(1).strip()}, Reader - {reader.group(1).strip()}')
+                        else:
+                            print("Conductor or Reader information not found.")
+                  
+                    else:
+                        print(f'Talk: {talk[1]} - {talk[2]}')
+            else:
+                print("No talks found.")
+
+            
+
+       
            
 
             
