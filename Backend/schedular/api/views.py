@@ -31,18 +31,36 @@ def makeSchedule(request):
 
             tpattern = re.compile(r"Treasures from God's Word(.*?)Apply Yourself to the Field Ministry", re.DOTALL)
             treasures = re.search(tpattern, song[1])
-           
+          
 
             ppattern = re.compile(r'([A-Za-z\s\'\""()?!:;“”\d]+)(?=\(\d+ min\.\))(\(\d+ min\.\)(.*?)(?=\d{2}:\d{2}(\d+)))', re.DOTALL)
             apply = re.findall(ppattern, treasures.group(1))
 
-          
-            for app in apply:
-                print(f'Apply: {app[0]} - {app[2]}' )
+            treasures_titles = ["Talk", "Spiritual Gems"]
+
+            for index, app in enumerate(apply):
+                print(f'{treasures_titles[index]}: {app[0]} - {app[2]}')
+               
 
             rpattern = re.compile(r"Bible Reading \(\d+ min\.\)(.*)", re.DOTALL)
             biblereader = re.search(rpattern, treasures.group(1))
             print(f'Bible Reading: {biblereader.group(1)}' )
+
+            apattern = re.compile(r"Apply Yourself to the Field Ministry(.*?)Living as Christians", re.DOTALL)
+            students = re.search(apattern, song[1])
+        
+
+         
+
+            spattern = re.compile(r'([A-Za-z\s]+)(?=\(\d+ min\.\))(\(\d+ min\.\)([A-Za-z\s&]+)(?=(\d{2}:\d{2}(\d+))|Living as Christians))', re.DOTALL)
+            parts = re.findall(spattern, students.group(0))
+
+    
+
+            for part in parts:
+                print(f'{part[0]}: {part[2]}')
+
+           
 
             
 
