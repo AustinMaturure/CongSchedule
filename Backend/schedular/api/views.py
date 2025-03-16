@@ -16,7 +16,7 @@ def makeSchedule(request):
 
     dates = pattern.findall(text)
     schedule = {}
-    for index, date in enumerate(dates):
+    for dayindex, date in enumerate(dates):
         print(f'\nday: {date[0]} ')
         day_schedule = {
         'Opening': {
@@ -160,8 +160,9 @@ def makeSchedule(request):
             if prayerclose:
                 day_schedule['Closing']['Closing Prayer'] = prayerclose.group(1)
                 print(f'Closing Prayer: {prayerclose.group(1)}')
-            print(day_schedule)   
-
+            print(day_schedule) 
+            schedule[date[0]]=day_schedule  
+    print(schedule)
             
 
             
