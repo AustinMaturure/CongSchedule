@@ -1,4 +1,13 @@
-import { Text, View, ScrollView, StyleSheet } from "react-native";
+import {
+  Text,
+  View,
+  ScrollView,
+  StyleSheet,
+  SafeAreaView,
+  Button,
+  Pressable,
+} from "react-native";
+
 import axios from "axios";
 import { useEffect, useState } from "react";
 
@@ -8,6 +17,7 @@ interface Talk {
 }
 
 interface Schedule {
+  Date: string;
   Opening: {
     "Opening Song": string;
     "Opening Prayer": string;
@@ -42,12 +52,13 @@ interface Schedule {
 }
 
 export default function Index() {
-  const [data, setData] = useState<{ [key: string]: Schedule } | null>(null);
+  const [data, setData] = useState<Schedule>();
   const [error, setError] = useState<string | null>(null);
+  const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(0);
 
   useEffect(() => {
     axios
-      .get("http://192.168.0.31:8000/schedular/api/")
+      .get(`http://192.168.0.31:8000/schedular/api/${currentWeekIndex}`)
       .then((response) => {
         setData(response.data);
       })
@@ -55,7 +66,7 @@ export default function Index() {
         console.error("API call failed:", err);
         setError(err.message);
       });
-  }, []);
+  }, [currentWeekIndex]);
 
   if (error) {
     return (
@@ -73,85 +84,154 @@ export default function Index() {
     );
   }
 
+  const currentSchedule = data;
+
+  const goToNextWeek = () => {
+    if (currentWeekIndex < 4) {
+      setCurrentWeekIndex(currentWeekIndex + 1);
+    }
+  };
+
+  const goToPreviousWeek = () => {
+    if (currentWeekIndex > 0) {
+      setCurrentWeekIndex(currentWeekIndex - 1);
+    }
+  };
+
+  const removeNumbers = (str: string) => {
+    return str.replace(/[0-9]/g, "");
+  };
+
+  const removeGems = (str: string) => {
+    return str.replace("Spiritual Gems", "");
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Loop through all the dates */}
-      {Object.entries(data).map(([date, schedule]) => (
-        <View key={date} style={styles.scheduleContainer}>
-          <Text style={styles.dateText}>{date}</Text>
+    <SafeAreaView className="ps-4 gap-4">
+      <View className="flex-row justify-between items-center text-center pt-6">
+        <Pressable onPress={goToPreviousWeek}>
+          <Button title="<" onPress={goToPreviousWeek} />
+        </Pressable>
+        <View>
+          <Text style={styles.dateText}>{currentSchedule.Date}</Text>
+        </View>
+        <Pressable onPress={goToNextWeek}>
+          <Button title=">" onPress={goToNextWeek} />
+        </Pressable>
+      </View>
 
-          {/* Opening Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Opening</Text>
-            <Text>Opening Song: {schedule.Opening["Opening Song"]}</Text>
-            <Text>Opening Prayer: {schedule.Opening["Opening Prayer"]}</Text>
-            <Text>Chairman: {schedule.Opening.Chairman}</Text>
-          </View>
+      <ScrollView>
+        {/* Opening Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} className="">
+            Opening
+          </Text>
+          <Text>Opening Song: {currentSchedule.Opening["Opening Prayer"]}</Text>
+          <Text>
+            Opening Prayer: {currentSchedule.Opening["Opening Prayer"]}
+          </Text>
+          <Text>Chairman: {currentSchedule.Opening.Chairman}</Text>
+        </View>
 
-          {/* Treasures Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Treasures From God's Word</Text>
-            <Text>
-              Talk: {schedule.Treasures.Talk.Title} -{" "}
-              {schedule.Treasures.Talk.Speaker}
-            </Text>
-            <Text>
-              Spiritual Gems: {schedule.Treasures["Spiritual Gems"].Title} -{" "}
-              {schedule.Treasures["Spiritual Gems"].Speaker}
-            </Text>
-            <Text>Bible Reading: {schedule.Treasures["Bible Reading"]}</Text>
-          </View>
-
-          {/* Apply Yourself Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Apply Yourself</Text>
-            {Object.entries(schedule["Apply Yourself"]).map(
-              ([activity, details]) => (
-                <Text key={activity}>
-                  {activity}: {details.Student} {details.Duration}
-                </Text>
-              )
-            )}
-          </View>
-
-          {/* Living as Christians Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Living as Christians</Text>
-            <Text>Song: {schedule["Living as Christians"].Song}</Text>
-            {Object.entries(schedule["Living as Christians"].Talks).map(
-              ([talk, details]) => (
-                <Text key={talk}>
-                  {talk === "Congregation Bible Study" ? (
-                    <View className="flex-co;">
-                      <View>
-                        <Text>
-                          {talk}: {details.Conductor}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text>{`Reader: ${details.Reader}`}</Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <>
-                      {talk}: {details.Speaker}{" "}
-                      {details.Duration && `${details.Duration}`}
-                    </>
-                  )}
-                </Text>
-              )
-            )}
-          </View>
-
-          {/* Closing Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Closing</Text>
-            <Text>Closing Song: {schedule.Closing["Closing Song"]}</Text>
-            <Text>Closing Prayer: {schedule.Closing["Closing Prayer"]}</Text>
+        {/* Treasures Section */}
+        <View>
+          <Text style={styles.sectionTitle}>Treasures From God's Word</Text>
+          <View className="ps-4 flex-col gap-3">
+            <View>
+              <View>
+                <Text>{currentSchedule.Treasures.Talk.Title} </Text>
+              </View>
+              <View>
+                <Text>{currentSchedule.Treasures.Talk.Speaker}</Text>
+              </View>
+            </View>
+            <View>
+              <Text>
+                <View>
+                  <View className="flex-row justify-between">
+                    <Text>Spiritual Gems </Text>
+                    <Text>
+                      {removeGems(
+                        currentSchedule.Treasures["Spiritual Gems"].Title
+                      )}
+                    </Text>
+                  </View>
+                  <View></View>
+                  <View>
+                    <Text>
+                      {currentSchedule.Treasures["Spiritual Gems"].Speaker}
+                    </Text>
+                  </View>
+                </View>
+              </Text>
+            </View>
+            <View>
+              <Text>Bible Reading</Text>
+              <Text>{currentSchedule.Treasures["Bible Reading"]}</Text>
+            </View>
           </View>
         </View>
-      ))}
-    </ScrollView>
+
+        {/* Apply Yourself Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Apply Yourself</Text>
+          {Object.entries(currentSchedule["Apply Yourself"]).map(
+            ([activity, details]) => (
+              <View
+                key={activity}
+                className="flex-row justify-between items-center p-2"
+              >
+                <View>
+                  <Text>{removeNumbers(activity)}</Text>
+                  <Text>{details.Student}</Text>
+                </View>
+                <View>
+                  <Text>{details.Duration}</Text>
+                </View>
+              </View>
+            )
+          )}
+        </View>
+
+        {/* Living as Christians Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Living as Christians</Text>
+          <Text>Song: {currentSchedule["Living as Christians"].Song}</Text>
+          {Object.entries(currentSchedule["Living as Christians"].Talks).map(
+            ([talk, details]) => (
+              <Text key={talk}>
+                {talk === "Congregation Bible Study" ? (
+                  <View className="flex-co;">
+                    <View>
+                      <Text>
+                        {talk}: {details.Conductor}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text>{`Reader: ${details.Reader}`}</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    {talk}: {details.Speaker}{" "}
+                    {details.Duration && `${details.Duration}`}
+                  </>
+                )}
+              </Text>
+            )
+          )}
+        </View>
+
+        {/* Closing Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Closing</Text>
+          <Text>Closing Song: {currentSchedule.Closing["Closing Song"]}</Text>
+          <Text>
+            Closing Prayer: {currentSchedule.Closing["Closing Prayer"]}
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -165,7 +245,6 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 8,
   },
   section: {
     marginBottom: 12,
@@ -176,7 +255,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   center: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
