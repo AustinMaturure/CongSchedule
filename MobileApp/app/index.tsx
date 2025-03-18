@@ -8,7 +8,7 @@ import {
   Image,
   Pressable,
 } from "react-native";
-
+import { Link } from "expo-router";
 import axios from "axios";
 import { useEffect, useState } from "react";
 
@@ -137,20 +137,38 @@ export default function Index() {
             />
           </Pressable>
         </View>
+        <View className="p-2 ">
+          <Link href={"./upcoming"} asChild>
+            <Pressable>
+              <View className="bg-lightblue rounded-3xl p-3 mb-2">
+                <Text className="font-bold text-2xl text-center color-lightwhite">
+                  Your Schedule
+                </Text>
+                <Text className="text-center color-white">
+                  Sign In to view your upcoming parts
+                </Text>
+              </View>
+            </Pressable>
+          </Link>
+        </View>
         <View className="rounded-t-3xl bg-lightwhite box-border p-6 z-10 gap-6 rounded-2xl">
           {/* Opening Section */}
           <View className="gap-2">
-            <Text style={styles.sectionTitle} className="">
-              Opening
-            </Text>
-            <View className="p-5 back-g rounded-lg">
-              <Text>
-                Opening Song: {currentSchedule.Opening["Opening Song"]}
+            <View className="p-5 back-g rounded-xl flex-col">
+              <Text className="font-bold mb-3">
+                {currentSchedule.Opening["Opening Song"]}
               </Text>
               <Text>
-                Opening Prayer: {currentSchedule.Opening["Opening Prayer"]}
+                <Text className="font-bold text-lg">Opening Prayer: </Text>
+
+                {currentSchedule.Opening["Opening Prayer"]}
               </Text>
-              <Text>Chairman: {currentSchedule.Opening.Chairman}</Text>
+
+              <Text>
+                <Text className="font-bold text-lg">Chairman: </Text>
+
+                {currentSchedule.Opening.Chairman}
+              </Text>
             </View>
           </View>
 
@@ -160,10 +178,10 @@ export default function Index() {
               Treasures From God's Word{" "}
             </Text>
             <View className="p-4 flex-col gap-3 back-g rounded-2xl">
-              <View>
+              <View className="gap-2">
                 <View>
                   <Text className="font-bold text-xl">
-                    {currentSchedule.Treasures.Talk.Title}{" "}
+                    {currentSchedule.Treasures.Talk.Title.trimStart()}
                   </Text>
                 </View>
 
@@ -173,11 +191,11 @@ export default function Index() {
                   </Text>
                 </View>
               </View>
-
-              <View>
+              <View className="border-b-hairline"></View>
+              <View className=" ">
                 <Text>
-                  <View>
-                    <View className="flex-row justify-between">
+                  <View className="gap-1">
+                    <View className="flex-row justify-between ">
                       <Text className="font-bold text-xl">Spiritual Gems </Text>
                       <Text className="font-bold text-xl">
                         {removeGems(
@@ -194,7 +212,8 @@ export default function Index() {
                   </View>
                 </Text>
               </View>
-              <View>
+              <View className="border-b-hairline"></View>
+              <View className="flex-col gap-1">
                 <Text className="font-bold text-xl">Bible Reading</Text>
                 <Text>{currentSchedule.Treasures["Bible Reading"]}</Text>
               </View>
@@ -206,32 +225,36 @@ export default function Index() {
             <Text style={styles.sectionTitle}>
               Apply Yourself To the Ministry
             </Text>
-            {Object.entries(currentSchedule["Apply Yourself"]).map(
-              ([activity, details]) => (
-                <View
-                  key={activity}
-                  className="flex-row justify-between items-center p-2 back-g rounded-2xl"
-                >
-                  <View>
-                    <Text className="font-bold text-xl">
-                      {removeNumbers(activity)}
-                    </Text>
-                    <Text>{details.Student}</Text>
+            <View className="flex-col gap-4">
+              {Object.entries(currentSchedule["Apply Yourself"]).map(
+                ([activity, details]) => (
+                  <View
+                    key={activity}
+                    className="flex-row justify-between items-center p-4  back-g rounded-2xl "
+                  >
+                    <View className="flex-col gap-1 ">
+                      <Text className="font-bold text-xl ">
+                        {removeNumbers(activity)}
+                      </Text>
+                      <Text className="text-[14px] ml-1">
+                        {details.Student}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
+                        {removeParenteshis(details.Duration)}
+                      </Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
-                      {removeParenteshis(details.Duration)}
-                    </Text>
-                  </View>
-                </View>
-              )
-            )}
+                )
+              )}
+            </View>
           </View>
 
           {/* Living as Christians Section */}
           <View className="gap-2">
             <Text style={styles.sectionTitle}>Living as Christians</Text>
-            <View className=" flex-col p-4 gap-4 back-g">
+            <View className=" flex-col p-4 gap-4 back-g rounded-2xl">
               <Text>{currentSchedule["Living as Christians"].Song}</Text>
               {Object.entries(
                 currentSchedule["Living as Christians"].Talks
@@ -239,11 +262,11 @@ export default function Index() {
                 <View key={talk} className="flex-col gap-4">
                   {talk === "Congregation Bible Study" ? (
                     <View className="flex-col">
-                      <View className="flex-row items-center">
+                      <View className="flex-row items-center justify-between">
                         <Text className="font-bold text-xl blk">{talk}:</Text>
                         <Text>{details.Conductor}</Text>
                       </View>
-                      <View className="flex-row items-center">
+                      <View className="flex-row items-center justify-between">
                         <Text className="font-bold text-xl">{`Reader: `}</Text>
                         <Text>{details.Reader}</Text>
                       </View>
@@ -261,6 +284,7 @@ export default function Index() {
                             `${removeParenteshis(details.Duration)}`}
                         </Text>
                       </View>
+                      <View className="border-b-hairline mt-3"></View>
                     </View>
                   )}
                 </View>
@@ -269,12 +293,16 @@ export default function Index() {
           </View>
 
           {/* Closing Section */}
-          <View style={styles.section} className="gap-2">
-            <Text style={styles.sectionTitle}>Closing</Text>
-            <Text>Closing Song: {currentSchedule.Closing["Closing Song"]}</Text>
-            <Text>
-              Closing Prayer: {currentSchedule.Closing["Closing Prayer"]}
-            </Text>
+          <View>
+            <View className="p-5 back-g rounded-xl flex-col">
+              <Text className="font-bold text-lg">
+                {currentSchedule.Closing["Closing Song"]}
+              </Text>
+              <View className="flex-row items-baseline">
+                <Text className="font-bold text-lg">Closing Prayer: </Text>
+                <Text>{currentSchedule.Closing["Closing Prayer"]}</Text>
+              </View>
+            </View>
           </View>
         </View>
       </ScrollView>
