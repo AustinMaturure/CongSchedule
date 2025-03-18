@@ -107,13 +107,20 @@ export default function Index() {
     return str.replace("Spiritual Gems", "");
   };
 
+  const removeParenteshis = (str: string) => {
+    let clean = str.replace("(", "");
+    clean = clean.replace(")", "");
+
+    return clean;
+  };
+
   return (
     <SafeAreaView className=" gap-4">
       <ScrollView className="flex-col gap-4 bg-zinc-800 ">
-        <View className="flex-row justify-between items-center text-center p-6">
+        <View className="flex-row justify-center gap-6 items-center text-center p-6">
           <Pressable onPress={goToPreviousWeek}>
             <Image
-              source={require("../assets/images/next-svgrepo-com.png")}
+              source={require("../assets/images/next-svgrepo-com (5).png")}
               className="w-9 h-9 object-cover flex-1"
               resizeMode="cover"
             />
@@ -125,20 +132,20 @@ export default function Index() {
           </View>
           <Pressable onPress={goToNextWeek}>
             <Image
-              source={require("../assets/images/next-svgrepo-com (1).png")}
+              source={require("../assets/images/next-svgrepo-com (4).png")}
               className="w-9 h-9 object-cover"
             />
           </Pressable>
         </View>
-        <View className="rounded-t-3xl bg-lightwhite box-border p-6 z-10">
+        <View className="rounded-t-3xl bg-lightwhite box-border p-6 z-10 gap-6 rounded-2xl">
           {/* Opening Section */}
-          <View>
+          <View className="gap-2">
             <Text style={styles.sectionTitle} className="">
               Opening
             </Text>
-            <View className="p-5">
+            <View className="p-5 back-g rounded-lg">
               <Text>
-                Opening Song: {currentSchedule.Opening["Opening Prayer"]}
+                Opening Song: {currentSchedule.Opening["Opening Song"]}
               </Text>
               <Text>
                 Opening Prayer: {currentSchedule.Opening["Opening Prayer"]}
@@ -148,23 +155,31 @@ export default function Index() {
           </View>
 
           {/* Treasures Section */}
-          <View>
-            <Text style={styles.sectionTitle}>Treasures From God's Word</Text>
-            <View className="p-4 flex-col gap-3">
+          <View className="gap-2">
+            <Text style={styles.sectionTitle} className=" p-2 rounded-xl">
+              Treasures From God's Word{" "}
+            </Text>
+            <View className="p-4 flex-col gap-3 back-g rounded-2xl">
               <View>
                 <View>
-                  <Text>{currentSchedule.Treasures.Talk.Title} </Text>
+                  <Text className="font-bold text-xl">
+                    {currentSchedule.Treasures.Talk.Title}{" "}
+                  </Text>
                 </View>
-                <View>
-                  <Text>{currentSchedule.Treasures.Talk.Speaker}</Text>
+
+                <View className="inline">
+                  <Text className="">
+                    {currentSchedule.Treasures.Talk.Speaker}
+                  </Text>
                 </View>
               </View>
+
               <View>
                 <Text>
                   <View>
                     <View className="flex-row justify-between">
-                      <Text>Spiritual Gems </Text>
-                      <Text>
+                      <Text className="font-bold text-xl">Spiritual Gems </Text>
+                      <Text className="font-bold text-xl">
                         {removeGems(
                           currentSchedule.Treasures["Spiritual Gems"].Title
                         )}
@@ -180,14 +195,14 @@ export default function Index() {
                 </Text>
               </View>
               <View>
-                <Text>Bible Reading</Text>
+                <Text className="font-bold text-xl">Bible Reading</Text>
                 <Text>{currentSchedule.Treasures["Bible Reading"]}</Text>
               </View>
             </View>
           </View>
 
           {/* Apply Yourself Section */}
-          <View style={styles.section}>
+          <View style={styles.section} className="gap-2">
             <Text style={styles.sectionTitle}>
               Apply Yourself To the Ministry
             </Text>
@@ -195,14 +210,18 @@ export default function Index() {
               ([activity, details]) => (
                 <View
                   key={activity}
-                  className="flex-row justify-between items-center p-2"
+                  className="flex-row justify-between items-center p-2 back-g rounded-2xl"
                 >
                   <View>
-                    <Text>{removeNumbers(activity)}</Text>
+                    <Text className="font-bold text-xl">
+                      {removeNumbers(activity)}
+                    </Text>
                     <Text>{details.Student}</Text>
                   </View>
                   <View>
-                    <Text>{details.Duration}</Text>
+                    <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
+                      {removeParenteshis(details.Duration)}
+                    </Text>
                   </View>
                 </View>
               )
@@ -210,35 +229,37 @@ export default function Index() {
           </View>
 
           {/* Living as Christians Section */}
-          <View>
+          <View className="gap-2">
             <Text style={styles.sectionTitle}>Living as Christians</Text>
-            <View className=" flex-col p-4 gap-4">
+            <View className=" flex-col p-4 gap-4 back-g">
               <Text>{currentSchedule["Living as Christians"].Song}</Text>
               {Object.entries(
                 currentSchedule["Living as Christians"].Talks
               ).map(([talk, details]) => (
                 <View key={talk} className="flex-col gap-4">
                   {talk === "Congregation Bible Study" ? (
-                    <View className="flex-co;">
-                      <View>
-                        <Text>
-                          {talk}: {details.Conductor}
-                        </Text>
+                    <View className="flex-col">
+                      <View className="flex-row items-center">
+                        <Text className="font-bold text-xl blk">{talk}:</Text>
+                        <Text>{details.Conductor}</Text>
                       </View>
-                      <View>
-                        <Text>{`Reader: ${details.Reader}`}</Text>
+                      <View className="flex-row items-center">
+                        <Text className="font-bold text-xl">{`Reader: `}</Text>
+                        <Text>{details.Reader}</Text>
                       </View>
                     </View>
                   ) : (
-                    <View className="flex-row justify-between items-center">
-                      <View className="flex-col gap-6">
-                        <View>
-                          <Text>{talk}</Text>
-                          <Text>{details.Speaker}</Text>
-                        </View>
-                      </View>
+                    <View className="flex-col  ">
                       <View>
-                        <Text>{details.Duration && `${details.Duration}`}</Text>
+                        <Text className="font-bold text-xl">{talk}</Text>
+                      </View>
+
+                      <View className="flex-row justify-between items-center">
+                        <Text>{details.Speaker}</Text>
+                        <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
+                          {details.Duration &&
+                            `${removeParenteshis(details.Duration)}`}
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -248,7 +269,7 @@ export default function Index() {
           </View>
 
           {/* Closing Section */}
-          <View style={styles.section}>
+          <View style={styles.section} className="gap-2">
             <Text style={styles.sectionTitle}>Closing</Text>
             <Text>Closing Song: {currentSchedule.Closing["Closing Song"]}</Text>
             <Text>
@@ -276,7 +297,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 23,
     fontWeight: "bold",
     marginBottom: 6,
   },
