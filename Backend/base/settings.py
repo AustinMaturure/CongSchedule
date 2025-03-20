@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'schedular',
+    'schedule',
+    'accounts',
     'rest_framework',
     'corsheaders',
     

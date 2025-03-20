@@ -2,5 +2,6 @@ from . import views
 from django.urls import path
 
 urlpatterns = [
-    path('<int:week>', views.makeSchedule),
+    path('makeschedule', views.makeSchedule),
+    path('getschedule/<str:date>', views.getSchedule),
 ]
