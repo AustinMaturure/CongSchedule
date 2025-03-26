@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,6 +42,10 @@ INSTALLED_APPS = [
     'schedule',
     'accounts',
     'rest_framework',
+     'rest_framework_simplejwt',
+     'rest_framework.authtoken',
+     'rest_framework_simplejwt.token_blacklist',
+    'dj_rest_auth',
     'corsheaders',
     
 ]
@@ -137,3 +141,27 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+REST_AUTH={
+    'USE_JWT':True,
+    'JWT_AUTH_COOKIE':'accounts_cookie',
+    'JWT_AUTH_REFRESH_COOKIE':'accounts_refresh_cookie'
+    }
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),   
+    'ROTATE_REFRESH_TOKENS': True,                   
+    'BLACKLIST_AFTER_ROTATION': True,                
+    'UPDATE_LAST_LOGIN': False,
+}

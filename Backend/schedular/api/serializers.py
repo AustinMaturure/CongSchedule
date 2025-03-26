@@ -117,3 +117,15 @@ class ScheduleDateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule
         fields = ['date']
+
+
+class ScheduleResultSerializer(serializers.Serializer):
+    schedule_date = serializers.CharField()
+    section = serializers.CharField()
+    title_or_theme = serializers.CharField()
+    duration = serializers.CharField(required=False, default='N/A')
+    student = serializers.CharField(required=False, default='N/A')
+    reader = serializers.CharField(required=False, default='N/A')
+    conductor = serializers.CharField(required=False, default='N/A')
+    
+     

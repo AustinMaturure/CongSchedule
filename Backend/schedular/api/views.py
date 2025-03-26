@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 import re
 from pdfminer.high_level import extract_text, extract_pages
@@ -6,12 +6,20 @@ from schedule.models import *
 from .serializers import *
 from rest_framework.exceptions import NotFound
 from datetime import datetime
+from collections import defaultdict
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+
+
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny]) 
 def makeSchedule(request):
-    file_path = r'C:\Users\LENOVO\Github\AustinMaturure\CongSchedule\Backend\schedular\api\Piet Retief Congregation March 2025 Life and Ministry Meeting Schedule.pdf'
-  
+    file_path = ScheduleSource.objects.first().file.path
     text = extract_text(file_path)
     text = text.replace("\u2640", "")
     text = text.replace("Printed", "")
@@ -19,6 +27,7 @@ def makeSchedule(request):
     pattern = re.compile(r'(\d{2} \w+ \d{4})\s?\|\s?(.*?)(?=\d{2} \w+ \d{4}|$)', re.DOTALL)
     dates = pattern.findall(text)
     schedule = {}
+
     for dayindex, date in enumerate(dates):
         print(f'\nday: {date[0]} ')
         sch, created = Schedule.objects.get_or_create(date=date[0])
@@ -207,12 +216,14 @@ def makeSchedule(request):
     
 
 @api_view(["GET"])
+@permission_classes([AllowAny]) 
 def getSchedule(request, date):
     try:
         datetime_obj =datetime.strptime(date, '%d %B %Y')
-        
+        print(f"Received date string: {date}") 
         dates = Schedule.objects.all()
         list_dates = ScheduleDateSerializer(dates, many=True)
+        
         for index, date in enumerate(list_dates.data):
             current_date = datetime.strptime(date['date'], '%d %B %Y') 
             if index + 1 < len(list_dates.data):  
@@ -227,8 +238,15 @@ def getSchedule(request, date):
 
         
         date_string = datetime_obj.strftime('%d %B %Y')
-        
-        schedule = Schedule.objects.get(date=date_string)
+        print(f"Fetching: {date_string}") 
+        for index, date in enumerate(list_dates.data):
+            current_date = datetime.strptime(date['date'], '%d %B %Y')
+            
+        try:
+            schedule = Schedule.objects.get(date=date_string)
+        except:
+            return Response({"error": "No matching date found in the schedule."}, status=status.HTTP_404_NOT_FOUND)
+
 
         opening = Opening.objects.get(schedule=schedule)
 
@@ -245,7 +263,7 @@ def getSchedule(request, date):
 
 
         data = {
-            "Schecule": ScheduleSerializer(schedule).data,
+            "Schedule": ScheduleSerializer(schedule).data,
             "Opening": OpeningSerializer(opening).data,
             "Treasures": TreasuresSerializer(treasures).data,
             "Apply Yourself": ApplySerializer(apply).data,
@@ -259,3 +277,119 @@ def getSchedule(request, date):
         return Response(data)
     except Schedule.DoesNotExist:
         raise NotFound(detail="Schedule for the given week does not exist.")
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny]) 
+def getUserSchedule(request, firstname):
+    first_name = firstname
+    
+    if not first_name:
+        return Response({"error": "First name parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    first_name_lower = first_name.lower()
+
+    try:
+        user = get_user_model().objects.get(first_name__iexact=first_name_lower)
+    except get_user_model().objects.get(first_name__iexact=first_name_lower).DoesNotExist:
+
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    
+    opening_matches = Opening.objects.filter(
+        Q(opening_prayer__icontains=user.first_name)
+    ).select_related('schedule')
+
+    apply_info_matches = ApplyInfo.objects.filter(
+        Q(student__icontains=user.first_name)
+    ).select_related('part__apply_week__schedule')
+
+    bible_reading_matches = Treasures.objects.filter(
+            Q(bible_reading__icontains=user.first_name)
+        ).select_related('schedule')
+
+    treasure_talk_matches = TreasuresTalkInfo.objects.filter(
+        Q(speaker__icontains=user.first_name)
+    ).select_related('talk__treasure_week__schedule')
+
+    bible_study_matches = BibleStudyInfo.objects.filter(
+        Q(conductor__icontains=user.first_name) | Q(reader__icontains=user.first_name)
+    ).select_related('living_section__section')
+
+    living_talk_matches = LivingTalkInfo.objects.filter(
+        Q(speaker__icontains=user.first_name)
+    ).select_related('living_section__section')
+    closing_matches = Closing.objects.filter(
+        Q(closing_prayer__icontains=user.first_name)
+    ).select_related('schedule')
+
+
+    all_matches = list(opening_matches) +  list(apply_info_matches) + list(treasure_talk_matches)+ list(bible_reading_matches)+ list(bible_study_matches) + list(living_talk_matches) + list(closing_matches)
+
+
+    results = []
+    for match in all_matches:
+        result = {}
+        if isinstance(match, Opening):
+            result = {
+                'schedule_date': match.schedule.date,
+                'section': 'Opening',
+                'title_or_theme': f'Opening prayer',
+                
+            }
+        elif isinstance(match, ApplyInfo):
+            result = {
+                'schedule_date': match.part.apply_week.schedule.date,
+                'section': 'Apply yourself to the Ministry',
+                'title_or_theme': f'{match.part.apply_part}',
+                'duration': match.duration if match.duration else 'N/A',
+                'student': match.student,
+            }
+        elif isinstance(match, TreasuresTalkInfo):
+            result = {
+                'schedule_date': match.talk.treasure_week.schedule.date,
+                'section': 'Treasures from God\'s Word',
+                'title_or_theme': match.talk.title,
+               
+                
+               
+            }
+        elif isinstance(match, Treasures):
+            result = {
+                'schedule_date': match.schedule.date,
+                'section': 'Treasures from God\'s Word',
+                'title_or_theme': f'Bible Reading',
+                'reader': match.bible_reading if match.bible_reading else 'N/A',
+                
+            }
+        elif isinstance(match, BibleStudyInfo):
+            result = {
+                'schedule_date': match.living_section.section.schedule.date,
+                'section': 'Living as Christians',
+                'title_or_theme': "Congregation Bible Study",
+                'conductor':match.conductor,
+                'reader': match.reader
+                
+            }
+        elif isinstance(match, LivingTalkInfo):
+            result = {
+                'schedule_date': match.living_section.section.schedule.date,
+                'section': 'Living as Christians',
+                'title_or_theme': match.living_section.title,
+                'duration': match.duration if match.duration else 'N/A',
+            }
+        elif isinstance(match, Closing):
+            result = {
+                'schedule_date': match.schedule.date,
+                'section': 'Closing',
+                'title_or_theme': f'Closing prayer',
+                
+            }
+        results.append(result)
+    def parse_date(date_str):
+       
+            return datetime.strptime(date_str, '%d %B %Y')
+
+     
+    sorted_results = sorted(results, key=lambda x: parse_date(x['schedule_date']))
+    serializer = ScheduleResultSerializer(sorted_results, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
