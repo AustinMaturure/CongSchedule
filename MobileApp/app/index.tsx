@@ -13,6 +13,8 @@ import { Link } from "expo-router";
 import axios from "axios";
 import { useEffect, useState } from "react";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 interface Talk {
   title: string;
   talk_info: {
@@ -74,6 +76,8 @@ export default function Index() {
   const [data, setData] = useState<ScheduleSkel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [next, setNext] = useState<number | 0>(7);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [first_name, setFirstName] = useState<string | "">("");
 
   const [currentWeekIndexDate, setCurrentDate] = useState<Date>(new Date());
 
@@ -83,10 +87,24 @@ export default function Index() {
     year: "numeric",
   });
 
+  const getData = async (key: string) => {
+    try {
+      const value = await AsyncStorage.getItem(key);
+      if (value !== null) {
+        return JSON.parse(value);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error retrieving data...", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
+    console.log("useEffect trig vgered");
     axios
       .get(
-        `http://192.168.0.31:8000/schedular/api/getschedule/${currentWeekIndexDate.toLocaleString(
+        `http://192.168.0.26:8000/schedular/api/getschedule/${currentWeekIndexDate.toLocaleString(
           "en-GB",
           { day: "2-digit", month: "long", year: "numeric" }
         )}`
@@ -96,6 +114,14 @@ export default function Index() {
           setNext(0);
         } else {
           setData(response.data);
+          const fetchData = async () => {
+            const token = await getData("access_token");
+            const first_name = await getData("first_name");
+            setAccessToken(token);
+            setFirstName(first_name);
+          };
+
+          fetchData();
           setNext(7);
           console.log(response.data);
         }
@@ -110,11 +136,38 @@ export default function Index() {
       });
   }, [currentWeekIndexDate]);
 
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = await getData("access_token");
+      const first_name = await getData("first_name");
+      setAccessToken(token);
+      setFirstName(first_name);
+    };
+
+    fetchData();
+  }, []);
+
   if (!data) {
     return (
-      <View style={styles.center}>
-        <Text>Loading...</Text>
-      </View>
+      <SafeAreaView className="h-svh p-6 ">
+        <View className="flex-col w-svw h-svh gap-4 p-4 pb-5">
+          <View className="h-12 p-6   bg-neutral-300 rounded-lg "></View>
+          <View className="bg-neutral-300 rounded-3xl p-3 mb-2">
+            <Text className="font-bold text-2xl text-center color-neutral-300">
+              Your Schedule
+            </Text>
+
+            <Text className="text-center text-neutral-300">
+              Hi,{" "}
+              <Text className="text-decoration-line text-neutral-300">
+                xxxxx...
+              </Text>
+              View your schedule.
+            </Text>
+          </View>
+          <View className="p-6 rounded-lg h-full box-border bg-neutral-300 "></View>
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -162,7 +215,7 @@ export default function Index() {
           </TouchableOpacity>
           <View>
             <Text style={styles.dateText} className="text-white">
-              {data.Schedule.date}
+              {data?.Schedule?.date}
             </Text>
           </View>
           <Pressable onPress={goToNextWeek} disabled={next == 0 ? true : false}>
@@ -175,15 +228,25 @@ export default function Index() {
 
         {/* Your Schedule Link Section */}
         <View className="p-2">
-          <Link href={"./upcoming"} asChild>
+          <Link href={accessToken ? "./upcoming" : "./accounts"} asChild>
             <Pressable>
               <View className="bg-lightblue rounded-3xl p-3 mb-2">
                 <Text className="font-bold text-2xl text-center color-lightwhite">
                   Your Schedule
                 </Text>
-                <Text className="text-center color-white">
-                  Sign In to view your upcoming parts
-                </Text>
+                {accessToken ? (
+                  <Text className="text-center color-white">
+                    Hi,{" "}
+                    <Text className="text-decoration-line">
+                      {first_name}...
+                    </Text>
+                    View your schedule.
+                  </Text>
+                ) : (
+                  <Text className="text-center color-white">
+                    Sign In to view your upcoming parts
+                  </Text>
+                )}
               </View>
             </Pressable>
           </Link>
@@ -194,16 +257,36 @@ export default function Index() {
           <View className="gap-2">
             <View className="p-5 back-g rounded-xl flex-col">
               <Text className="font-bold mb-3">
-                {data.Opening.opening_song}
+                {data?.Opening?.opening_song}
               </Text>
-              <Text>
-                <Text className="font-bold text-lg">Opening Prayer: </Text>
-                {data.Opening.opening_prayer}
-              </Text>
-              <Text>
-                <Text className="font-bold text-lg">Chairman: </Text>
-                {data.Opening.chairman}
-              </Text>
+              <View className="flex-row items-center">
+                <Text className={`font-bold text-lg `}>Opening Prayer: </Text>
+                <Text
+                  className={` ${
+                    data.Opening.opening_prayer
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-1 rounded-lg font-bold "
+                      : ""
+                  }}`}
+                >
+                  {data.Opening.opening_prayer}
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                <Text className={`font-bold text-lg `}>Chairman: </Text>
+                <Text
+                  className={` ${
+                    data.Opening.chairman
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite rounded-lg font-bold p-1"
+                      : ""
+                  }`}
+                >
+                  {data.Opening.chairman}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -219,7 +302,18 @@ export default function Index() {
                     {talk.title.trimStart()}
                   </Text>
                   {talk.talk_info.map((info, infoIndex) => (
-                    <Text key={infoIndex}>{info.speaker}</Text>
+                    <Text
+                      key={infoIndex}
+                      className={`${
+                        info.speaker
+                          .toLowerCase()
+                          .includes(first_name?.toLowerCase())
+                          ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                          : ""
+                      }`}
+                    >
+                      {info.speaker}
+                    </Text>
                   ))}
                   {index < data.Treasures.treasures_talks.length - 1 && (
                     <View className="border-b-hairline"></View>
@@ -228,7 +322,17 @@ export default function Index() {
               ))}
               <View className="flex-col gap-1 border-t-hairline ">
                 <Text className="font-bold text-xl mt-2">Bible Reading</Text>
-                <Text>{data.Treasures.bible_reading}</Text>
+                <Text
+                  className={`${
+                    data.Treasures.bible_reading
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-2 rounded-lg"
+                      : ""
+                  }`}
+                >
+                  {data.Treasures.bible_reading}
+                </Text>
               </View>
             </View>
           </View>
@@ -248,7 +352,15 @@ export default function Index() {
                     <Text className="font-bold text-xl">
                       {removeNumbers(part.apply_part)}
                     </Text>
-                    <Text className="text-[14px] ml-1">
+                    <Text
+                      className={`text-[14px] ml-1 ${
+                        part.apply_info[0].student
+                          .toLowerCase()
+                          .includes(first_name?.toLowerCase())
+                          ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                          : ""
+                      } `}
+                    >
                       {part.apply_info[0].student}
                     </Text>
                   </View>
@@ -278,7 +390,17 @@ export default function Index() {
                       key={infoIndex}
                       className="flex-row justify-between items-center"
                     >
-                      <Text>{info.speaker}</Text>
+                      <Text
+                        className={`${
+                          info.speaker
+                            .toLowerCase()
+                            .includes(first_name?.toLowerCase())
+                            ? "bg-lightblue font-bold text-lightwhite p-2 rounded-lg"
+                            : ""
+                        }`}
+                      >
+                        {info.speaker}
+                      </Text>
                       {talk.title !== "Local Needs" ? (
                         <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
                           {info.duration &&
@@ -306,12 +428,32 @@ export default function Index() {
                         <Text className="font-bold text-xl ">
                           {"Congregation Bible Study:"}
                         </Text>
-                        <Text>{info.conductor}</Text>
+                        <Text
+                          className={`${
+                            info.conductor
+                              .toLowerCase()
+                              .includes(first_name?.toLowerCase())
+                              ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold mb-1"
+                              : ""
+                          }`}
+                        >
+                          {info.conductor}
+                        </Text>
                       </View>
 
                       <View className="flex-row justify-between">
                         <Text className="font-bold text-xl">Reader: </Text>
-                        <Text>{info.reader}</Text>
+                        <Text
+                          className={`${
+                            info.reader
+                              .toLowerCase()
+                              .includes(first_name?.toLowerCase())
+                              ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                              : ""
+                          }`}
+                        >
+                          {info.reader}
+                        </Text>
                       </View>
                     </View>
                   ))}
@@ -325,9 +467,19 @@ export default function Index() {
               <Text className="font-bold text-lg">
                 {data.Closing.closing_song}
               </Text>
-              <View className="flex-row items-baseline">
-                <Text className="font-bold text-lg">Closing Prayer: </Text>
-                <Text>{data.Closing.closing_prayer}</Text>
+              <View className="flex-row  items-center">
+                <Text className={`font-bold text-lg `}>Closing Prayer: </Text>
+                <Text
+                  className={` ${
+                    data.Closing.closing_prayer
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-2 rounded-lg"
+                      : ""
+                  }`}
+                >
+                  {data.Closing.closing_prayer.trim()}
+                </Text>
               </View>
             </View>
           </View>
