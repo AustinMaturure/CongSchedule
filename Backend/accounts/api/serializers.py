@@ -19,4 +19,9 @@ class AddUserSerializer(serializers.ModelSerializer):
             username=validated_data["first_name"]+validated_data["last_name"]
         )
         return user
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        fields = ('username','first_name', 'last_name', 'password')
+
     

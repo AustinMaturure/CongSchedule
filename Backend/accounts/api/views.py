@@ -8,6 +8,8 @@ from .serializers import *
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
+from django.contrib.auth import authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -52,3 +54,40 @@ def addUser(request):
             }, status=status.HTTP_201_CREATED)
       
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def Login(request):
+    if request.method == 'POST':
+        first_name = request.data.get('first_name')
+        last_name = request.data.get('last_name')
+
+        # Check if both first_name and last_name are provided
+        if not first_name or not last_name:
+            return Response({'message': 'First name and last name are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+  
+        username = first_name +  last_name
+        
+      
+        user = authenticate(request, username=username)
+
+        if user is not None:
+           
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            return Response({
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                },
+                'access_token': access_token,
+                'refresh_token': str(refresh),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)

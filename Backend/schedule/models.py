@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth import get_user_model
 
 # Create your models here.
 
@@ -110,4 +111,60 @@ class Closing(models.Model):
     closing_prayer = models.CharField(max_length=255, null=True)
     def __str__(self):
         return f"Closing for week of {self.schedule.date}"
+    
+class Duty(models.Model):
+    name = models.CharField(max_length=255)
 
+    def __str__(self):
+        return self.name
+
+class AssignedDuties(models.Model):
+    full_name = models.CharField(max_length=255)
+    class Gender(models.TextChoices):
+        BROTHER = 'Brother', 'Brother'
+        SISTER = 'Sister', 'Sister'
+        APPBROTHER = 'Appointed Brother', 'Appointed Brother'
+
+    type = models.CharField(
+        max_length=100,
+        choices=Gender.choices,
+        default=Gender.BROTHER
+    )
+
+    def __str__(self):
+        return self.full_name
+
+class DutyAssignment(models.Model):
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
+    assigned_duty = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, null=True)
+    duty = models.ForeignKey(Duty, on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return f" {self.duty.name} for {self.schedule.date} : {self.assigned_duty.full_name} "
+
+class ApponitedBrother(models.Model):
+    brother = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE)
+    def __str__(self):
+        return self.brother.full_name
+    
+class PublicTalk(models.Model):
+    speaker = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE)
+    theme = models.CharField(max_length=225)
+    def __str__(self):
+        return f'{self.theme} - {self.speaker.brother.full_name}'
+
+class WatchtowerStudy(models.Model):
+    conductor = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
+    reader = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, related_name='Reader')
+    def __str__(self):
+        return f'{self.conductor.brother.full_name} - {self.reader.full_name} '
+    
+class SundaySchedule(models.Model):
+    date = models.CharField(max_length=255, null=True)
+    chairman = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
+    public_discourse = models.ForeignKey(PublicTalk, on_delete=models.CASCADE)
+    watchtower = models.ForeignKey(WatchtowerStudy, on_delete=models.CASCADE)
+    closing_prayer = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, related_name='closing_prayer', null=True)
+
+    def __str__(self):
+        return f"Sunday Schedule for {self.date}"

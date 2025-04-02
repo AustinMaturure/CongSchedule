@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from schedule.models import Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing
+from schedule.models import Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing, Duty, AssignedDuties, DutyAssignment, SundaySchedule, ApponitedBrother, PublicTalk, WatchtowerStudy
 
 
 
@@ -108,6 +108,42 @@ class ClosingSerializer(serializers.ModelSerializer):
         fields = ['closing_song', 'closing_prayer']
 
 
+class DutySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Duty
+        fields = ['id', 'name']
+
+class AssignedDutiesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssignedDuties
+        fields = ['id', 'full_name']
+class DutyAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DutyAssignment
+        fields = ['duty', 'assigned_duty']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        duty_name = representation.get('duty', None)
+        assigned_duty_name = representation.get('assigned_duty', None)
+
+
+        if isinstance(duty_name, dict):
+            duty_name = duty_name.get('name', '')
+        elif isinstance(duty_name, int):  
+            duty_obj = Duty.objects.get(id=duty_name)  
+            duty_name = duty_obj.name  
+
+        if isinstance(assigned_duty_name, dict):
+            assigned_duty_name = assigned_duty_name.get('full_name', '')
+        elif isinstance(assigned_duty_name, int): 
+            assigned_duty_obj = AssignedDuties.objects.get(id=assigned_duty_name) 
+            assigned_duty_name = assigned_duty_obj.full_name  
+
+        return {duty_name: assigned_duty_name}
+
+  
+
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Schedule
@@ -127,5 +163,51 @@ class ScheduleResultSerializer(serializers.Serializer):
     student = serializers.CharField(required=False, default='N/A')
     reader = serializers.CharField(required=False, default='N/A')
     conductor = serializers.CharField(required=False, default='N/A')
+
+
+
+
+class AssignedDutiesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AssignedDuties
+        fields = ['full_name']  
+
+
+class ApponitedBrotherSerializer(serializers.ModelSerializer):
+    brother = AssignedDutiesSerializer()  
+
+    class Meta:
+        model = ApponitedBrother
+        fields = ['brother']  
+
+class PublicTalkSerializer(serializers.ModelSerializer):
+    speaker = ApponitedBrotherSerializer()  
+
+    class Meta:
+        model = PublicTalk
+        fields = ['theme', 'speaker']  
+
+
+class WatchtowerStudySerializer(serializers.ModelSerializer):
+    conductor = ApponitedBrotherSerializer()  
+    reader = AssignedDutiesSerializer()  
+    class Meta:
+        model = WatchtowerStudy
+        fields = ['conductor', 'reader'] 
+
+
+class SundayScheduleSerializer(serializers.ModelSerializer):
+    chairman = ApponitedBrotherSerializer()
+    public_discourse = PublicTalkSerializer()  
+    watchtower = WatchtowerStudySerializer() 
+    closing_prayer = AssignedDutiesSerializer()  
+
+    class Meta:
+        model = SundaySchedule
+        fields = ['date', 'chairman', 'public_discourse', 'watchtower', 'closing_prayer']
+
     
-     
+class SundayScheduleDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SundaySchedule
+        fields = ['date']  

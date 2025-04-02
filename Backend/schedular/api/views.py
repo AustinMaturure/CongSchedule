@@ -261,6 +261,8 @@ def getSchedule(request, date):
 
         closing = Closing.objects.get(schedule=schedule)
 
+        duties = DutyAssignment.objects.filter(schedule=schedule)
+
 
         data = {
             "Schedule": ScheduleSerializer(schedule).data,
@@ -269,6 +271,7 @@ def getSchedule(request, date):
             "Apply Yourself": ApplySerializer(apply).data,
             "Living as Christians": LivingSerializer(living).data,
             "Closing": ClosingSerializer(closing).data,
+            "Duties": DutyAssignmentSerializer(duties, many=True).data
         }
 
         
@@ -277,6 +280,53 @@ def getSchedule(request, date):
         return Response(data)
     except Schedule.DoesNotExist:
         raise NotFound(detail="Schedule for the given week does not exist.")
+    
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def getSundaySchedule(request, date):
+    try:
+
+        datetime_obj = datetime.strptime(date, '%d %B %Y')
+        print(f"Received date string: {date}")
+            
+
+        dates = SundaySchedule.objects.all()
+
+
+        for sunday_schedule in dates:
+            current_date = datetime.strptime(sunday_schedule.date, '%d %B %Y')
+            
+            if current_date > datetime_obj:
+                date_string = current_date.strftime('%d %B %Y')
+                print(f"Fetching schedule for: {date_string}")
+                
+ 
+                try:
+                    schedule = SundaySchedule.objects.get(date=date_string)
+                    serializer = SundayScheduleSerializer(schedule)
+                    return Response(serializer.data)
+                except SundaySchedule.DoesNotExist:
+                    return Response({"error": "No matching date found in the schedule."}, status=status.HTTP_404_NOT_FOUND)
+
+        # If no date is found (i.e., all dates are before the given date)
+        return Response({"error": "No upcoming schedule found."}, status=status.HTTP_404_NOT_FOUND)
+
+    except ValueError as e:
+        # If date parsing fails
+        return Response({"error": "Invalid date format. Please use 'dd Month yyyy' format."}, status=status.HTTP_400_BAD_REQUEST)
+
+        
+
+       
+        
+        
+        
+        
+    except SundaySchedule.DoesNotExist:
+        raise NotFound(detail="Schedule for the given week does not exist.")
+
 
 
 @api_view(["GET"])
