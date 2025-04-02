@@ -64,7 +64,7 @@ const Upcoming = () => {
     console.log("Datr " + scheduleDateObj);
     const currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-    return scheduleDateObj < currentDate;
+    return false;
   }
 
   const renderScheduleItem = ({ item }: { item: ScheduleItem }) => {

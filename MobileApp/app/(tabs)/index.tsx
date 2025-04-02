@@ -37,7 +37,9 @@ interface BibleStudy {
     reader: string;
   }[];
 }
-
+interface Duties {
+  [key: string]: string;
+}
 interface ScheduleSkel {
   Schedule: {
     id: string;
@@ -70,6 +72,7 @@ interface ScheduleSkel {
     closing_song: string;
     closing_prayer: string;
   };
+  Duties: Duties[];
 }
 
 export default function Index() {
@@ -104,7 +107,7 @@ export default function Index() {
     console.log("useEffect trig vgered");
     axios
       .get(
-        `http://192.168.0.26:8000/schedular/api/getschedule/${currentWeekIndexDate.toLocaleString(
+        `http://192.168.110.250:8000/schedular/api/getschedule/${currentWeekIndexDate.toLocaleString(
           "en-GB",
           { day: "2-digit", month: "long", year: "numeric" }
         )}`
@@ -146,6 +149,33 @@ export default function Index() {
 
     fetchData();
   }, []);
+
+  const renderDuties = () => {
+    return data?.Duties.map((duty, index) => (
+      <View key={index} className="flex-col gap-2">
+        {Object.keys(duty).map((key) => (
+          <View key={key} className="flex-col gap-2">
+            <View className="flex-row justify-between">
+              <View>
+                <Text className="font-bold text-lg text-white">{key}:</Text>
+              </View>
+              <View>
+                <Text
+                  className={`${
+                    duty[key].toLowerCase().includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-1 rounded-lg font-bold"
+                      : "text-md text-lightwhite"
+                  }`}
+                >
+                  {duty[key]}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+    ));
+  };
 
   if (!data) {
     return (
@@ -208,7 +238,7 @@ export default function Index() {
             activeOpacity={next == 0 ? 0.6 : 0.9}
           >
             <Image
-              source={require("../assets/images/next-svgrepo-com (5).png")}
+              source={require("../../assets/images/next-svgrepo-com (5).png")}
               className="w-9 h-9 object-cover flex-1"
               resizeMode="cover"
             />
@@ -220,7 +250,7 @@ export default function Index() {
           </View>
           <Pressable onPress={goToNextWeek} disabled={next == 0 ? true : false}>
             <Image
-              source={require("../assets/images/next-svgrepo-com (4).png")}
+              source={require("../../assets/images/next-svgrepo-com (4).png")}
               className="w-9 h-9 object-cover"
             />
           </Pressable>
@@ -481,6 +511,13 @@ export default function Index() {
                   {data.Closing.closing_prayer.trim()}
                 </Text>
               </View>
+            </View>
+          </View>
+          <View className="border-hairline"></View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Duties</Text>
+            <View className="p-5 bg-primary rounded-xl flex-col mt-3">
+              {renderDuties()}
             </View>
           </View>
         </View>
