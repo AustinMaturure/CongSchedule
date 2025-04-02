@@ -134,13 +134,6 @@ class AssignedDuties(models.Model):
     def __str__(self):
         return self.full_name
 
-class DutyAssignment(models.Model):
-    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
-    assigned_duty = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, null=True)
-    duty = models.ForeignKey(Duty, on_delete=models.CASCADE, null=True)
-
-    def __str__(self):
-        return f" {self.duty.name} for {self.schedule.date} : {self.assigned_duty.full_name} "
 
 class ApponitedBrother(models.Model):
     brother = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE)
@@ -168,3 +161,20 @@ class SundaySchedule(models.Model):
 
     def __str__(self):
         return f"Sunday Schedule for {self.date}"
+
+class DutyAssignment(models.Model):
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
+    assigned_duty = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, null=True)
+    duty = models.ForeignKey(Duty, on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return f" {self.duty.name} for {self.schedule.date} : {self.assigned_duty.full_name} "
+    
+class SundayDutyAssignment(models.Model):
+
+    schedule = models.ForeignKey(SundaySchedule, on_delete=models.CASCADE, null=True)
+    assigned_duty = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, null=True)
+    duty = models.ForeignKey(Duty, on_delete=models.CASCADE, null=True)
+
+    def __str__(self):
+        return f" {self.duty.name} for {self.schedule.date} : {self.assigned_duty.full_name} "

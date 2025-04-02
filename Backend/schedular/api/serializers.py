@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from schedule.models import Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing, Duty, AssignedDuties, DutyAssignment, SundaySchedule, ApponitedBrother, PublicTalk, WatchtowerStudy
+from schedule.models import Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing, Duty, AssignedDuties, DutyAssignment, SundaySchedule, ApponitedBrother, PublicTalk, SundayDutyAssignment,WatchtowerStudy
 
 
 
@@ -142,7 +142,30 @@ class DutyAssignmentSerializer(serializers.ModelSerializer):
 
         return {duty_name: assigned_duty_name}
 
-  
+class SundayDutyAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SundayDutyAssignment
+        fields = ['duty', 'assigned_duty']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        duty_name = representation.get('duty', None)
+        assigned_duty_name = representation.get('assigned_duty', None)
+
+
+        if isinstance(duty_name, dict):
+            duty_name = duty_name.get('name', '')
+        elif isinstance(duty_name, int):  
+            duty_obj = Duty.objects.get(id=duty_name)  
+            duty_name = duty_obj.name  
+
+        if isinstance(assigned_duty_name, dict):
+            assigned_duty_name = assigned_duty_name.get('full_name', '')
+        elif isinstance(assigned_duty_name, int): 
+            assigned_duty_obj = AssignedDuties.objects.get(id=assigned_duty_name) 
+            assigned_duty_name = assigned_duty_obj.full_name  
+
+        return {duty_name: assigned_duty_name}
 
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:

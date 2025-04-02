@@ -293,6 +293,8 @@ def getSundaySchedule(request, date):
             
 
         dates = SundaySchedule.objects.all()
+        
+
 
 
         for sunday_schedule in dates:
@@ -305,8 +307,15 @@ def getSundaySchedule(request, date):
  
                 try:
                     schedule = SundaySchedule.objects.get(date=date_string)
+                    duties = SundayDutyAssignment.objects.filter(schedule=schedule)
                     serializer = SundayScheduleSerializer(schedule)
-                    return Response(serializer.data)
+                    schedule_serializer = SundayScheduleSerializer(schedule)
+                    duties_serializer = DutyAssignmentSerializer(duties, many=True)
+        
+        
+                    response_data = schedule_serializer.data
+                    response_data['duties'] = duties_serializer.data
+                    return Response(response_data)
                 except SundaySchedule.DoesNotExist:
                     return Response({"error": "No matching date found in the schedule."}, status=status.HTTP_404_NOT_FOUND)
 

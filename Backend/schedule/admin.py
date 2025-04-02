@@ -21,6 +21,7 @@ admin.site.register(Closing)
 
 admin.site.register(AssignedDuties)
 admin.site.register(DutyAssignment)
+admin.site.register(SundayDutyAssignment)
 admin.site.register(Duty)
 
 
