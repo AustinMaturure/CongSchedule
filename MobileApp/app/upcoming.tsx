@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   ActivityIndicator,
+  StatusBar,
   SafeAreaView,
   StyleSheet,
 } from "react-native";
@@ -13,8 +14,10 @@ import { parse } from "date-fns";
 
 interface ScheduleItem {
   schedule_date: string;
+  day: string;
   section: string;
   title_or_theme: string;
+  duty: string;
   duration: string;
   student: string | null;
   reader: string | null;
@@ -30,14 +33,17 @@ const Upcoming = () => {
     try {
       const userFirstName = await AsyncStorage.getItem("first_name");
       const cleanedFirstName = userFirstName?.replace(/"/g, "").trim();
+      const userLastName = await AsyncStorage.getItem("last_name");
+      const cleanedLastName = userLastName?.replace(/"/g, "").trim();
       const accessToken = await AsyncStorage.getItem("access_token");
 
       if (userFirstName && accessToken) {
         const response = await axios.get<ScheduleItem[]>(
-          `http://192.168.0.26:8000/schedular/api/getuserschedule/${cleanedFirstName}`,
+          `http://192.168.110.250:8000/schedular/api/getuserschedule/${cleanedFirstName}/${cleanedLastName}`,
           {}
         );
         setScheduleData(response.data);
+        console.log(response.data);
       } else {
         setError("User information or access token not found");
       }
@@ -59,32 +65,32 @@ const Upcoming = () => {
     return clean;
   };
 
-  function hasSchedulePassed(scheduleDate: string): boolean {
-    const scheduleDateObj = parse(scheduleDate, "dd MMMM yyyy", new Date());
-    console.log("Datr " + scheduleDateObj);
-    const currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
-    return false;
-  }
-
   const renderScheduleItem = ({ item }: { item: ScheduleItem }) => {
+    console.log(item);
     return (
-      <View
-        style={styles.scheduleItem}
-        className={`${
-          hasSchedulePassed(item.schedule_date) ? "bg-gray-600 hidden" : ""
-        }`}
-      >
+      <View style={styles.scheduleItem}>
+        <StatusBar barStyle="light-content" />
         <View
           className="
         flex-row justify-between items-center mb-3"
         >
-          <Text
-            style={styles.scheduleDate}
-            className=" text-xl  bg-lightblue font-bold self-start rounded-xl text-lightwhite p-2 text-center"
-          >
-            {item.schedule_date}
-          </Text>
+          <View className="flex-row gap-1">
+            <Text
+              className={` text-xl ${
+                item.day == "Sunday" || item.day == "Saturday"
+                  ? "bg-blue-200"
+                  : "bg-slate-700"
+              }  font-bold self-start rounded-xl text-lightwhite p-2 text-center `}
+            >
+              {item.day}
+            </Text>
+            <Text
+              style={styles.scheduleDate}
+              className=" text-xl  bg-lightblue font-bold self-start rounded-xl text-lightwhite p-2 text-center"
+            >
+              {item.schedule_date}
+            </Text>
+          </View>
           {item.duration !== "N/A" && (
             <Text className="bg-primary  font-bold self-start rounded-xl text-lightwhite p-2 ">
               {removeParenteshis(item.duration)}

@@ -188,8 +188,7 @@ const Weekend = () => {
           >
             <Image
               source={require("../../assets/images/next-svgrepo-com (5).png")}
-              className="w-9 h-9 object-cover flex-1"
-              resizeMode="cover"
+              className="w-9 h-9 object-cover"
             />
           </TouchableOpacity>
           <View>
@@ -207,7 +206,7 @@ const Weekend = () => {
 
         {/* Your Schedule Link Section */}
         <View className="p-2">
-          <Link href={!accessToken ? "../upcoming" : "../accounts"} asChild>
+          <Link href={accessToken ? "../upcoming" : "../accounts"} asChild>
             <Pressable>
               <View className="bg-lightblue rounded-3xl p-3 mb-2">
                 <Text className="font-bold text-2xl text-center color-lightwhite">
@@ -272,10 +271,10 @@ const Weekend = () => {
             <Text>{data.public_discourse.speaker.brother.full_name}</Text>
           </View>
           <Text style={styles.sectionTitle}>Watchtower</Text>
-          <View className="flex-col justify-between back-g  p-4 rounded-xl">
-            <View className="flex-row justify-between items-center rounded-xl">
+          <View className="flex-col justify-between back-g  p-4 gap-2 rounded-xl ">
+            <View className="justify-between  rounded-xl flex-col">
               <Text className="font-bold text-xl ">
-                {"Watchtower Conductor:"}
+                {"Watchtower Conductor"}
               </Text>
               <Text
                 className={`${
@@ -290,8 +289,8 @@ const Weekend = () => {
               </Text>
             </View>
 
-            <View className="flex-row justify-between">
-              <Text className="font-bold text-xl">Reader: </Text>
+            <View className="flex-col justify-between">
+              <Text className="font-bold text-xl">Reader </Text>
               <Text
                 className={`${
                   data.watchtower.reader.full_name
@@ -307,14 +306,14 @@ const Weekend = () => {
           </View>
           <Text style={styles.sectionTitle}>Closing</Text>
           <View className="p-5 back-g rounded-xl flex-col">
-            <View className="flex-row  items-center">
-              <Text className={`font-bold text-lg `}>Closing Prayer: </Text>
+            <View className="flex-col  ">
+              <Text className={`font-bold text-lg `}>Closing Prayer </Text>
               <Text
                 className={` ${
                   data.closing_prayer.full_name
                     .toLowerCase()
                     .includes(first_name?.toLowerCase())
-                    ? "bg-lightblue text-lightwhite p-2 rounded-lg"
+                    ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
                     : ""
                 }`}
               >
@@ -339,7 +338,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f5f5f5",
-    padding: 20,
   },
   loadingContainer: {
     justifyContent: "center",

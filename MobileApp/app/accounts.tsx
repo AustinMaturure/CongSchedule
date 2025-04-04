@@ -46,7 +46,7 @@ export default function Upcoming() {
 
   useEffect(() => {
     axios
-      .post(`http://192.168.0.26:8000/accounts/api/${action}/`, userInfo)
+      .post(`http://192.168.110.250:8000/accounts/api/${action}/`, userInfo)
       .then((response) => {
         setStatus("Loading");
         if (response.status === 400) {

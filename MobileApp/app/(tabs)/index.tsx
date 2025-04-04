@@ -5,9 +5,11 @@ import {
   StyleSheet,
   SafeAreaView,
   Button,
+  StatusBar,
   Image,
   Pressable,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Link } from "expo-router";
 import axios from "axios";
@@ -81,6 +83,7 @@ export default function Index() {
   const [next, setNext] = useState<number | 0>(7);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [first_name, setFirstName] = useState<string | "">("");
+  const [last_name, setLastName] = useState<string | "">("");
 
   const [currentWeekIndexDate, setCurrentDate] = useState<Date>(new Date());
 
@@ -120,8 +123,10 @@ export default function Index() {
           const fetchData = async () => {
             const token = await getData("access_token");
             const first_name = await getData("first_name");
+            const last_name = await getData("last_name");
             setAccessToken(token);
             setFirstName(first_name);
+            setLastName(last_name);
           };
 
           fetchData();
@@ -143,8 +148,10 @@ export default function Index() {
     const fetchData = async () => {
       const token = await getData("access_token");
       const first_name = await getData("first_name");
+      const last_name = await getData("last_name");
       setAccessToken(token);
       setFirstName(first_name);
+      setLastName(last_name);
     };
 
     fetchData();
@@ -179,8 +186,8 @@ export default function Index() {
 
   if (!data) {
     return (
-      <SafeAreaView className="h-svh p-6 ">
-        <View className="flex-col w-svw h-svh gap-4 p-4 pb-5">
+      <SafeAreaView className="h-vh p-6 ">
+        <View className="w-svw h-vh gap-4 p-4 pb-5">
           <View className="h-12 p-6   bg-neutral-300 rounded-lg "></View>
           <View className="bg-neutral-300 rounded-3xl p-3 mb-2">
             <Text className="font-bold text-2xl text-center color-neutral-300">
@@ -195,7 +202,9 @@ export default function Index() {
               View your schedule.
             </Text>
           </View>
-          <View className="p-6 rounded-lg h-full box-border bg-neutral-300 "></View>
+          <View className="p-6 rounded-lg h-4/5 box-border bg-neutral-300 align-middle items-center justify-center">
+            <ActivityIndicator size="large" color="#1f1f1f" />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -229,7 +238,11 @@ export default function Index() {
   };
 
   return (
-    <SafeAreaView className="gap-4">
+    <SafeAreaView className="gap-4 bg-primary">
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#1f1f1f" // Background color of the status bar
+      />
       <ScrollView className="flex-col gap-4 bg-zinc-800">
         <View className="flex-row justify-center gap-6 items-center text-center p-6">
           <TouchableOpacity
@@ -239,8 +252,7 @@ export default function Index() {
           >
             <Image
               source={require("../../assets/images/next-svgrepo-com (5).png")}
-              className="w-9 h-9 object-cover flex-1"
-              resizeMode="cover"
+              className="w-9 h-9 object-cover"
             />
           </TouchableOpacity>
           <View>
@@ -376,28 +388,34 @@ export default function Index() {
               {data["Apply Yourself"].apply_parts.map((part, index) => (
                 <View
                   key={index}
-                  className="flex-row justify-between items-center p-4 back-g rounded-2xl"
+                  className="flex-col justify-between p-4 back-g rounded-2xl "
                 >
                   <View className="flex-col gap-1 ">
-                    <Text className="font-bold text-xl">
-                      {removeNumbers(part.apply_part)}
-                    </Text>
-                    <Text
-                      className={`text-[14px] ml-1 ${
-                        part.apply_info[0].student
-                          .toLowerCase()
-                          .includes(first_name?.toLowerCase())
-                          ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
-                          : ""
-                      } `}
-                    >
-                      {part.apply_info[0].student}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
-                      {removeParenteshis(part.apply_info[0].duration)}
-                    </Text>
+                    <View className="flex-row justify-between">
+                      <View>
+                        <Text className="font-bold text-xl">
+                          {removeNumbers(part.apply_part)}
+                        </Text>{" "}
+                      </View>
+                      <View>
+                        <Text className="bg-primary font-bold self-start rounded-xl text-lightwhite p-2">
+                          {removeParenteshis(part.apply_info[0].duration)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View>
+                      <Text
+                        className={`text-[14px] ml-1 ${
+                          part.apply_info[0].student
+                            .toLowerCase()
+                            .includes(first_name?.toLowerCase())
+                            ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                            : ""
+                        } `}
+                      >
+                        {part.apply_info[0].student}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               ))}
@@ -454,7 +472,7 @@ export default function Index() {
                     "Living as Christians"
                   ].bible_study[0].bible_study_info.map((info, infoIndex) => (
                     <View key={infoIndex} className="flex-col justify-between">
-                      <View className="flex-row justify-between items-center mt-4">
+                      <View className="flex-row justify-between flex-wrap sm:flex-col items-center mt-4">
                         <Text className="font-bold text-xl ">
                           {"Congregation Bible Study:"}
                         </Text>
@@ -471,14 +489,14 @@ export default function Index() {
                         </Text>
                       </View>
 
-                      <View className="flex-row justify-between">
+                      <View className="flex-row justify-between items-center flex-wrap sm:flex-col">
                         <Text className="font-bold text-xl">Reader: </Text>
                         <Text
                           className={`${
                             info.reader
                               .toLowerCase()
                               .includes(first_name?.toLowerCase())
-                              ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                              ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold mt-2"
                               : ""
                           }`}
                         >

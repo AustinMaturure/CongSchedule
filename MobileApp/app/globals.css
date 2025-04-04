@@ -9,3 +9,15 @@
 .blk {
   color: #1f1f1f;
 }
+
+.b-gr {
+  border-color: gray;
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

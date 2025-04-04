@@ -4,7 +4,6 @@ import { View, Text, StyleSheet } from "react-native";
 import { useState } from "react";
 import "../globals.css";
 
-// Type for CustomTabLabel component props
 interface CustomTabLabelProps {
   focused: boolean;
   label: string;
@@ -37,33 +36,18 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 55,
     boxSizing: "border-box",
-    borderRadius: 25, // Border radius for the label
-    alignItems: "center", // Center content horizontally
-    justifyContent: "center", // Center content vertically
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
   },
   labelText: {
-    fontWeight: "bold", // Bold text
-    fontSize: 16, // Font size
+    fontWeight: "bold",
+    fontSize: 13,
+    borderRadius: 25,
   },
 });
 
 export default function RootLayout() {
-  const [isVisible, setIsVisible] = useState(true); // State to control visibility of the tab label
-  const [lastScrollY, setLastScrollY] = useState(0); // Track the last scroll position
-
-  // Function to handle scroll events
-  const handleScroll = (event: any) => {
-    const currentOffsetY = event.nativeEvent.contentOffset.y;
-
-    // If user scrolls down, hide the tab label; if they scroll up, show it
-    if (currentOffsetY > lastScrollY && currentOffsetY > 50) {
-      setIsVisible(false); // Hide if scrolling down
-    } else if (currentOffsetY < lastScrollY) {
-      setIsVisible(true); // Show if scrolling up
-    }
-    setLastScrollY(currentOffsetY); // Update last scroll position
-  };
-
   return (
     <Tabs>
       <Tabs.Screen
@@ -72,7 +56,7 @@ export default function RootLayout() {
           title: "Midweek",
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: "#1f1f1f", // Tab background color
+            backgroundColor: "black", // Tab background color
             borderRadius: 25, // Pill shape
             paddingVertical: 50,
 
@@ -101,7 +85,7 @@ export default function RootLayout() {
           title: "Weekend",
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: "#1f1f1f", // Tab background color
+            backgroundColor: "black", // Tab background color
             borderRadius: 25, // Pill shape
             padding: 0,
             boxSizing: "border-box",

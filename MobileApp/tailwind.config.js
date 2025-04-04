@@ -10,6 +10,7 @@ module.exports = {
         lightwhite: "#FBFAF8",
         lightblue: "#80a0d6",
         lightorang: "#FFD166",
+        honeydew: "#CFDECA",
       },
     },
   },
