@@ -147,6 +147,7 @@ class PublicTalk(models.Model):
         return f'{self.theme} - {self.speaker.brother.full_name}'
 
 class WatchtowerStudy(models.Model):
+  
     conductor = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
     reader = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, related_name='Reader')
     def __str__(self):
@@ -155,8 +156,10 @@ class WatchtowerStudy(models.Model):
 class SundaySchedule(models.Model):
     date = models.CharField(max_length=255, null=True)
     chairman = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
+
     public_discourse = models.ForeignKey(PublicTalk, on_delete=models.CASCADE)
     watchtower = models.ForeignKey(WatchtowerStudy, on_delete=models.CASCADE)
+
     closing_prayer = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, related_name='closing_prayer', null=True)
 
     def __str__(self):

@@ -181,6 +181,8 @@ class ScheduleDateSerializer(serializers.ModelSerializer):
 class ScheduleResultSerializer(serializers.Serializer):
     schedule_date = serializers.CharField()
     section = serializers.CharField()
+    duty = serializers.CharField(required=False, default='N/A')
+    day= serializers.CharField(required=False, default='N/A')
     title_or_theme = serializers.CharField()
     duration = serializers.CharField(required=False, default='N/A')
     student = serializers.CharField(required=False, default='N/A')

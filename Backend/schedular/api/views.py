@@ -319,11 +319,11 @@ def getSundaySchedule(request, date):
                 except SundaySchedule.DoesNotExist:
                     return Response({"error": "No matching date found in the schedule."}, status=status.HTTP_404_NOT_FOUND)
 
-        # If no date is found (i.e., all dates are before the given date)
+
         return Response({"error": "No upcoming schedule found."}, status=status.HTTP_404_NOT_FOUND)
 
     except ValueError as e:
-        # If date parsing fails
+
         return Response({"error": "Invalid date format. Please use 'dd Month yyyy' format."}, status=status.HTTP_400_BAD_REQUEST)
 
         
@@ -336,21 +336,96 @@ def getSundaySchedule(request, date):
     except SundaySchedule.DoesNotExist:
         raise NotFound(detail="Schedule for the given week does not exist.")
 
+def getSun(username):
+        
+        assigned_duties = AssignedDuties.objects.filter(full_name__icontains=username)
+        
+        if not assigned_duties.exists():
+            return Response({"message": "No duties found for the given name."}, status=status.HTTP_404_NOT_FOUND)
 
+        result = []
+
+        for duty in assigned_duties:
+      
+            appointed_brother = ApponitedBrother.objects.filter(brother=duty).first()
+
+
+            public_talks = PublicTalk.objects.filter(speaker=appointed_brother)
+            for talk in public_talks:
+               
+                sunday_schedule = SundaySchedule.objects.filter(public_discourse=talk).first()
+                schedule_date = sunday_schedule.date if sunday_schedule else "N/A"
+
+                result.append({
+                    "schedule_date": schedule_date,
+                    "day":datetime.strptime(schedule_date, "%d %B %Y").strftime("%A"),
+                    "title_or_theme": talk.theme,
+                    "student": talk.speaker.brother.full_name,
+                    "section": "Public Talk",
+                })
+
+            watchtower_studies = WatchtowerStudy.objects.filter(
+    Q(conductor=appointed_brother) 
+)
+            for study in watchtower_studies:
+                
+                sunday_schedule = SundaySchedule.objects.filter(watchtower=study).first()
+                schedule_date = sunday_schedule.date if sunday_schedule else "N/A"
+
+                result.append({
+                    "schedule_date": schedule_date,  
+                    "day":datetime.strptime(schedule_date, "%d %B %Y").strftime("%A"),
+                    "section":"Sunday Meeting",
+                    "title_or_theme": "Watchtower Study",
+                    "reader": study.reader.full_name,
+                    "conductor": study.conductor.brother.full_name if study.conductor else "N/A",
+                })
+ 
+            sunday_schedules = SundaySchedule.objects.filter(chairman=appointed_brother)
+            for schedule in sunday_schedules:
+                result.append({
+                    "schedule_date": schedule.date,
+                    "day":datetime.strptime(schedule.date, "%d %B %Y").strftime("%A"),
+                    "section": "Sunday Duty Assignment", 
+                    "title_or_theme": "Chairman",  
+                    "duty": schedule.chairman.brother.full_name,
+                    "reader": "N/A",
+                    "conductor": "N/A"
+                })
+
+           
+            duties = SundaySchedule.objects.filter(closing_prayer=duty)
+            for duty_schedule in duties:
+                result.append({
+                    "schedule_date": duty_schedule.date,
+                    "section": "Sunday Duty Assignment", 
+                    "day":datetime.strptime(duty_schedule.date, "%d %B %Y").strftime("%A"),
+                    "duty": duty.full_name,
+                    "title_or_theme": "Closing Prayer", 
+                    "duration": "N/A", 
+                    "student": "N/A", 
+                    "reader": "N/A", 
+                    "conductor": "N/A",  
+                })
+           
+
+        return (result)
 
 @api_view(["GET"])
 @permission_classes([AllowAny]) 
-def getUserSchedule(request, firstname):
+def getUserSchedule(request, firstname, lastname):
     first_name = firstname
+    last_name = lastname
+    username = first_name + last_name
     
     if not first_name:
         return Response({"error": "First name parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    first_name_lower = first_name.lower()
+    username_lower = username.lower()
 
     try:
-        user = get_user_model().objects.get(first_name__iexact=first_name_lower)
-    except get_user_model().objects.get(first_name__iexact=first_name_lower).DoesNotExist:
+        user = get_user_model().objects.get(username__icontains=username)
+    except get_user_model().objects.get(username__icontains=username).DoesNotExist:
 
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
     
@@ -374,6 +449,8 @@ def getUserSchedule(request, firstname):
         Q(conductor__icontains=user.first_name) | Q(reader__icontains=user.first_name)
     ).select_related('living_section__section')
 
+
+
     living_talk_matches = LivingTalkInfo.objects.filter(
         Q(speaker__icontains=user.first_name)
     ).select_related('living_section__section')
@@ -381,16 +458,35 @@ def getUserSchedule(request, firstname):
         Q(closing_prayer__icontains=user.first_name)
     ).select_related('schedule')
 
+    midweek_duty_matches = DutyAssignment.objects.filter(
+    Q(assigned_duty__full_name__icontains=user.first_name)
+).select_related('schedule', 'assigned_duty', 'duty')
+    
 
-    all_matches = list(opening_matches) +  list(apply_info_matches) + list(treasure_talk_matches)+ list(bible_reading_matches)+ list(bible_study_matches) + list(living_talk_matches) + list(closing_matches)
 
 
-    results = []
+
+
+
+
+    sunday_duty_matches = SundayDutyAssignment.objects.filter(
+    Q(assigned_duty__full_name__icontains=user.first_name)
+).select_related('schedule', 'assigned_duty', 'duty')
+
+
+
+    all_matches = list(opening_matches) +  list(apply_info_matches) + list(treasure_talk_matches)+ list(bible_reading_matches)+ list(bible_study_matches) + list(living_talk_matches)+ list(sunday_duty_matches) + list(midweek_duty_matches)
+
+
+    results = [] + getSun(first_name)
     for match in all_matches:
         result = {}
+
+
         if isinstance(match, Opening):
             result = {
                 'schedule_date': match.schedule.date,
+                'day': datetime.strptime(match.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Opening',
                 'title_or_theme': f'Opening prayer',
                 
@@ -398,6 +494,7 @@ def getUserSchedule(request, firstname):
         elif isinstance(match, ApplyInfo):
             result = {
                 'schedule_date': match.part.apply_week.schedule.date,
+                'day': datetime.strptime(match.part.apply_week.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Apply yourself to the Ministry',
                 'title_or_theme': f'{match.part.apply_part}',
                 'duration': match.duration if match.duration else 'N/A',
@@ -406,15 +503,15 @@ def getUserSchedule(request, firstname):
         elif isinstance(match, TreasuresTalkInfo):
             result = {
                 'schedule_date': match.talk.treasure_week.schedule.date,
+                'day': datetime.strptime(match.talk.treasure_week.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Treasures from God\'s Word',
                 'title_or_theme': match.talk.title,
-               
-                
-               
+                       
             }
         elif isinstance(match, Treasures):
             result = {
                 'schedule_date': match.schedule.date,
+                'day': datetime.strptime(match.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Treasures from God\'s Word',
                 'title_or_theme': f'Bible Reading',
                 'reader': match.bible_reading if match.bible_reading else 'N/A',
@@ -423,15 +520,18 @@ def getUserSchedule(request, firstname):
         elif isinstance(match, BibleStudyInfo):
             result = {
                 'schedule_date': match.living_section.section.schedule.date,
+                'day': datetime.strptime(match.living_section.section.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Living as Christians',
                 'title_or_theme': "Congregation Bible Study",
                 'conductor':match.conductor,
                 'reader': match.reader
                 
             }
+
         elif isinstance(match, LivingTalkInfo):
             result = {
                 'schedule_date': match.living_section.section.schedule.date,
+                'day': datetime.strptime(match.living_section.section.schedule.date, "%d %B %Y").strftime("%A"),
                 'section': 'Living as Christians',
                 'title_or_theme': match.living_section.title,
                 'duration': match.duration if match.duration else 'N/A',
@@ -439,16 +539,40 @@ def getUserSchedule(request, firstname):
         elif isinstance(match, Closing):
             result = {
                 'schedule_date': match.schedule.date,
-                'section': 'Closing',
+                'day': datetime.strptime(match.schedule.date, "%d %B %Y").strftime("%A"),
+                'section': 'Midweek Closing',
                 'title_or_theme': f'Closing prayer',
                 
             }
+
+        elif isinstance(match, SundayDutyAssignment):
+            result = {
+                'schedule_date': match.schedule.date,
+                'day':datetime.strptime(match.schedule.date, "%d %B %Y").strftime("%A"),
+                'section': 'Weekend Duty Assignment',
+                'title_or_theme': match.duty.name,
+                'duty': match.assigned_duty.full_name,
+            }
+      
+  
+        elif isinstance(match, DutyAssignment):
+            result = {
+                'schedule_date': match.schedule.date,
+                'day': datetime.strptime(match.schedule.date, "%d %B %Y").strftime("%A"),
+                'section': 'Midweek Duty Assignment',
+                'title_or_theme': match.duty.name,
+                'duty': match.assigned_duty.full_name,
+            }
         results.append(result)
+   
     def parse_date(date_str):
        
             return datetime.strptime(date_str, '%d %B %Y')
 
      
-    sorted_results = sorted(results, key=lambda x: parse_date(x['schedule_date']))
+    current_date = datetime.now()
+    future_results = [result for result in results if parse_date(result['schedule_date']) >= current_date]
+    sorted_results = sorted(future_results, key=lambda x: parse_date(x['schedule_date']))
     serializer = ScheduleResultSerializer(sorted_results, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
