@@ -6,6 +6,7 @@ from schedule.models import *
 from .serializers import *
 from rest_framework.exceptions import NotFound
 from datetime import datetime
+
 from collections import defaultdict
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -73,7 +74,7 @@ def makeSchedule(request):
             treasures = re.search(tpattern, song[1])
           
 
-            ppattern = re.compile(r'([A-Za-z\s\'\""()?\-!:;“”\d]+)(?=\(\d+ min\.\))(\(\d+ min\.\)(.*?)(?=\d{2}:\d{2}(\d+)))', re.DOTALL)
+            ppattern = re.compile(r'([A-Za-z\s\'\""()?\-!:,;“”\d]+)(?=\(\d+ min\.\))(\(\d+ min\.\)(.*?)(?=\d{2}:\d{2}(\d+)))', re.DOTALL)
             apply = re.findall(ppattern, treasures.group(1))
 
             treasures_titles = ["Talk", "Spiritual Gems"]
@@ -298,9 +299,9 @@ def getSundaySchedule(request, date):
 
 
         for sunday_schedule in dates:
-            current_date = datetime.strptime(sunday_schedule.date, '%d %B %Y')
+            current_date = datetime.strptime(sunday_schedule.date, '%d %B %Y').replace(hour=0, minute=0, second=0, microsecond=0)
             
-            if current_date > datetime_obj:
+            if current_date >= datetime_obj:
                 date_string = current_date.strftime('%d %B %Y')
                 print(f"Fetching schedule for: {date_string}")
                 
@@ -324,30 +325,26 @@ def getSundaySchedule(request, date):
 
     except ValueError as e:
 
-        return Response({"error": "Invalid date format. Please use 'dd Month yyyy' format."}, status=status.HTTP_400_BAD_REQUEST)
-
-        
-
-       
-        
-        
-        
+        return Response({"error": "Invalid date format. Please use 'dd Month yyyy' format."}, status=status.HTTP_400_BAD_REQUEST)     
         
     except SundaySchedule.DoesNotExist:
         raise NotFound(detail="Schedule for the given week does not exist.")
 
 def getSun(username):
+        print(f"Username: {username}")
         
         assigned_duties = AssignedDuties.objects.filter(full_name__icontains=username)
         
         if not assigned_duties.exists():
-            return Response({"message": "No duties found for the given name."}, status=status.HTTP_404_NOT_FOUND)
+            return ([])
 
         result = []
 
         for duty in assigned_duties:
+            print(f"Assigned Duty: {duty.full_name}")
       
             appointed_brother = ApponitedBrother.objects.filter(brother=duty).first()
+
 
 
             public_talks = PublicTalk.objects.filter(speaker=appointed_brother)
@@ -363,30 +360,33 @@ def getSun(username):
                     "student": talk.speaker.brother.full_name,
                     "section": "Public Talk",
                 })
-
+            print("reasdr"+duty.full_name)
             watchtower_studies = WatchtowerStudy.objects.filter(
-    Q(conductor=appointed_brother) 
+    Q(conductor=appointed_brother ) | Q(reader__full_name=duty.full_name) 
+    
 )
             for study in watchtower_studies:
                 
-                sunday_schedule = SundaySchedule.objects.filter(watchtower=study).first()
-                schedule_date = sunday_schedule.date if sunday_schedule else "N/A"
+                
+                sunday_schedule = SundaySchedule.objects.filter(watchtower=study)
+                for sunday_schedule in sunday_schedule:
+                    schedule_date = sunday_schedule.date if sunday_schedule else "N/A"
 
-                result.append({
-                    "schedule_date": schedule_date,  
-                    "day":datetime.strptime(schedule_date, "%d %B %Y").strftime("%A"),
-                    "section":"Sunday Meeting",
-                    "title_or_theme": "Watchtower Study",
-                    "reader": study.reader.full_name,
-                    "conductor": study.conductor.brother.full_name if study.conductor else "N/A",
-                })
+                    result.append({
+                        "schedule_date": schedule_date,  
+                        "day":datetime.strptime(schedule_date, "%d %B %Y").strftime("%A"),
+                        "section":"Weekend Meeting",
+                        "title_or_theme": "Watchtower Study",
+                        "reader": study.reader.full_name,
+                        "conductor": study.conductor.brother.full_name if study.conductor else "N/A",
+                    })
  
             sunday_schedules = SundaySchedule.objects.filter(chairman=appointed_brother)
             for schedule in sunday_schedules:
                 result.append({
                     "schedule_date": schedule.date,
                     "day":datetime.strptime(schedule.date, "%d %B %Y").strftime("%A"),
-                    "section": "Sunday Duty Assignment", 
+                    "section": "Weekend Meeting Assignment", 
                     "title_or_theme": "Chairman",  
                     "duty": schedule.chairman.brother.full_name,
                     "reader": "N/A",
@@ -398,7 +398,7 @@ def getSun(username):
             for duty_schedule in duties:
                 result.append({
                     "schedule_date": duty_schedule.date,
-                    "section": "Sunday Duty Assignment", 
+                    "section": "Weekend Meeting Assignment", 
                     "day":datetime.strptime(duty_schedule.date, "%d %B %Y").strftime("%A"),
                     "duty": duty.full_name,
                     "title_or_theme": "Closing Prayer", 
@@ -408,7 +408,7 @@ def getSun(username):
                     "conductor": "N/A",  
                 })
            
-
+        print(f"Result: {result}")
         return (result)
 
 @api_view(["GET"])
@@ -417,6 +417,7 @@ def getUserSchedule(request, firstname, lastname):
     first_name = firstname
     last_name = lastname
     username = first_name + last_name
+    print(f"Username: {username}")
     
     if not first_name:
         return Response({"error": "First name parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -478,7 +479,7 @@ def getUserSchedule(request, firstname, lastname):
     all_matches = list(opening_matches) +  list(apply_info_matches) + list(treasure_talk_matches)+ list(bible_reading_matches)+ list(bible_study_matches) + list(living_talk_matches)+ list(sunday_duty_matches) + list(midweek_duty_matches)
 
 
-    results = [] + getSun(first_name)
+    results = [] + getSun(first_name+' ' +last_name)
     for match in all_matches:
         result = {}
 
@@ -566,11 +567,11 @@ def getUserSchedule(request, firstname, lastname):
         results.append(result)
    
     def parse_date(date_str):
-       
-            return datetime.strptime(date_str, '%d %B %Y')
+     return datetime.strptime(date_str, '%d %B %Y')
 
-     
-    current_date = datetime.now()
+    current_date = datetime.now() 
+    current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
     future_results = [result for result in results if parse_date(result['schedule_date']) >= current_date]
     sorted_results = sorted(future_results, key=lambda x: parse_date(x['schedule_date']))
     serializer = ScheduleResultSerializer(sorted_results, many=True)

@@ -63,7 +63,7 @@ def Login(request):
         first_name = request.data.get('first_name')
         last_name = request.data.get('last_name')
 
-        # Check if both first_name and last_name are provided
+     
         if not first_name or not last_name:
             return Response({'message': 'First name and last name are required'}, status=status.HTTP_400_BAD_REQUEST)
 
