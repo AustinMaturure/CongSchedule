@@ -46,7 +46,10 @@ export default function Upcoming() {
 
   useEffect(() => {
     axios
-      .post(`http://192.168.110.250:8000/accounts/api/${action}/`, userInfo)
+      .post(
+        `https://congschedules.pythonanywhere.com/accounts/api/${action}/`,
+        userInfo
+      )
       .then((response) => {
         setStatus("Loading");
         if (response.status === 400) {
@@ -87,8 +90,9 @@ export default function Upcoming() {
                   <Text className="text-5xl font-bold"> an Account</Text>
 
                   <Text className="p-2">
-                    Creating an allows you to see your upcoming parts and get
-                    notified when a new Schedule is up.
+                    Creating an account allows you to see your upcoming parts,
+                    have your parts highlighted in the schedule and get notified
+                    when a new schedule is up.
                   </Text>
                 </View>
 

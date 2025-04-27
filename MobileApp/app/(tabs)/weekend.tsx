@@ -9,11 +9,14 @@ import {
   ScrollView,
   Pressable,
   TouchableOpacity,
+  StatusBar,
   Image,
+  Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Link } from "expo-router";
+import renderDuties from "../duties.js";
 
 interface Brother {
   full_name: string;
@@ -53,9 +56,11 @@ interface WeekendSchedule {
 }
 
 const Weekend = () => {
-  const [data, setData] = useState<WeekendSchedule | null>(null); // Apply the WeekendSchedule type
+  const [data, setData] = useState<WeekendSchedule | null>(null);
+  const [end, setEnd] = useState<boolean | false>(false);
   const [error, setError] = useState<string | null>(null);
   const [next, setNext] = useState<number | 0>(7);
+  const [loading, setLoading] = useState<boolean | true>(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [first_name, setFirstName] = useState<string | "">("");
 
@@ -82,18 +87,24 @@ const Weekend = () => {
 
   useEffect(() => {
     console.log("useEffect triggered");
+    setEnd(false);
+    setNext(7);
+    setLoading(true);
     axios
       .get(
-        `http://192.168.110.250:8000/schedular/api/getsundayschedule/${currentWeekIndexDate.toLocaleString(
+        `https://congschedules.pythonanywhere.com/schedular/api/getsundayschedule/${currentWeekIndexDate.toLocaleString(
           "en-GB",
           { day: "2-digit", month: "long", year: "numeric" }
         )}`
       )
       .then((response) => {
         if (response.status === 404) {
-          setNext(0);
+          setEnd(true);
+          console.log(response.status);
         } else {
           setData(response.data);
+          setEnd(false);
+          setLoading(false);
           const fetchData = async () => {
             const token = await getData("access_token");
             const first_name = await getData("first_name");
@@ -102,13 +113,13 @@ const Weekend = () => {
           };
 
           fetchData();
-          setNext(7);
           console.log(response.data);
         }
       })
       .catch((err) => {
         setError(err.message);
         if (err.response && err.response.status === 404) {
+          setEnd(true);
           setError(
             err.response.data.error || "No data found for the requested date."
           );
@@ -127,44 +138,6 @@ const Weekend = () => {
     fetchData();
   }, []);
 
-  if (!data) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text style={styles.loadingText}>Loading your schedule...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const renderDuties = () => {
-    return data?.duties.map((duty, index) => (
-      <View key={index} className="flex-col">
-        {Object.keys(duty).map((key) => (
-          <View key={key} className="flex-col gap-2">
-            <View className="flex-row justify-between mb-1">
-              <View>
-                <Text className="text-lg text-white font-bold">{key}:</Text>
-              </View>
-              <View>
-                <Text
-                  className={`${
-                    duty[key].toLowerCase().includes(first_name?.toLowerCase())
-                      ? "bg-lightblue text-lightwhite p-1 rounded-lg font-bold mb-1"
-                      : "text-md text-lightwhite"
-                  }`}
-                >
-                  {duty[key]}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ))}
-      </View>
-    ));
-  };
-
   const goToNextWeek = () => {
     const newDate = new Date(currentWeekIndexDate);
     newDate.setDate(currentWeekIndexDate.getDate() + next);
@@ -176,9 +149,97 @@ const Weekend = () => {
     newDate.setDate(currentWeekIndexDate.getDate() - next);
     setCurrentDate(newDate);
   };
+  if (!data || end) {
+    return (
+      <SafeAreaView
+        className={`h-vh ${Platform.OS == "ios" ? "p-6" : ""} bg-zinc-800`}
+      >
+        <StatusBar barStyle="light-content" backgroundColor="#27272a" />
+        {data ? (
+          <View className=" bg-primary">
+            <View className="flex-row justify-center gap-6 items-center text-center p-6">
+              <TouchableOpacity
+                onPress={goToPreviousWeek}
+                activeOpacity={end ? 0.6 : 0.9}
+              >
+                <Image
+                  source={require("../../assets/images/next-svgrepo-com (5).png")}
+                  className="w-9 h-9 object-cover"
+                />
+              </TouchableOpacity>
+              <View>
+                <Text style={styles.dateText} className="text-white">
+                  {data?.date}
+                </Text>
+              </View>
+              <Pressable onPress={goToNextWeek}>
+                <Image
+                  source={require("../../assets/images/next-svgrepo-com (4).png")}
+                  className="w-9 h-9 object-cover"
+                />
+              </Pressable>
+            </View>
+            <Link
+              className="p-2"
+              href={accessToken ? "../upcoming" : "../accounts"}
+              asChild
+            >
+              <Pressable>
+                <View className="bg-lightblue rounded-3xl p-3 mb-2">
+                  <Text className="font-bold text-2xl text-center color-lightwhite">
+                    Your Schedule
+                  </Text>
+                  {accessToken ? (
+                    <Text className="text-center color-white">
+                      Hi,{" "}
+                      <Text className="text-decoration-line">
+                        {first_name}...
+                      </Text>
+                      View your schedule.
+                    </Text>
+                  ) : (
+                    <Text className="text-center color-white">
+                      Sign In to view your upcoming parts
+                    </Text>
+                  )}
+                </View>
+              </Pressable>
+            </Link>
+          </View>
+        ) : (
+          <View className="w-svw h-vh gap-4 p-4 pb-5 ">
+            <View className="h-12 p-6 bg-neutral-300 rounded-lg"></View>
+            <View className="bg-neutral-300 rounded-3xl p-3 mb-2">
+              <Text className="font-bold text-2xl text-center color-neutral-300">
+                Your Schedule
+              </Text>
+              <Text className="text-center text-neutral-300">
+                Hi,{" "}
+                <Text className="text-decoration-line text-neutral-300">
+                  xxxxx...
+                </Text>
+                View your schedule.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <View className="w-svw h-vh gap-4 pt-8 px-6 rounded-t-3xl bg-lightwhite">
+          <View className="p-6 rounded-lg h-5/6 box-border bg-neutral-300 align-middle items-center justify-center">
+            {end ? (
+              <Text>A schedule is not available for this date</Text>
+            ) : (
+              <ActivityIndicator size="large" color="#1f1f1f" />
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="bg-primary">
+      <StatusBar barStyle="light-content" backgroundColor="#27272a" />
       <ScrollView className="flex-col gap-4 bg-zinc-800">
         <View className="flex-row justify-center gap-6 items-center text-center p-6">
           <TouchableOpacity
@@ -229,116 +290,119 @@ const Weekend = () => {
             </Pressable>
           </Link>
         </View>
-
-        <View className="rounded-t-3xl bg-lightwhite box-border p-6 z-10 gap-6 rounded-2xl">
-          <View className="gap-2">
-            <View className="p-5 back-g rounded-xl flex-col">
-              <View className="flex-row items-center">
-                <Text className={`font-bold text-lg `}>Opening Prayer: </Text>
-                <Text
-                  className={` ${
-                    data.chairman.brother.full_name
-                      .toLowerCase()
-                      .includes(first_name?.toLowerCase())
-                      ? "bg-lightblue text-lightwhite p-1 rounded-lg font-bold "
-                      : ""
-                  }}`}
-                >
-                  {data.chairman.brother.full_name}
-                </Text>
+        {loading ? (
+          <View className="flex-col justify-center rounded-t-3xl bg-lightwhite h-96  p-6 box-border items-center">
+            <View className=" ">
+              <ActivityIndicator size="large" color="#1f1f1f" />
+            </View>
+          </View>
+        ) : (
+          <View className="rounded-t-3xl bg-lightwhite box-border p-6 z-10 gap-6 rounded-2xl">
+            <View className="gap-2">
+              <View className="p-5 back-g rounded-xl flex-col">
+                <View className="flex-row items-center">
+                  <Text className={`font-bold text-lg `}>Opening Prayer: </Text>
+                  <Text
+                    className={` ${
+                      data?.chairman.brother.full_name
+                        .toLowerCase()
+                        .includes(first_name?.toLowerCase())
+                        ? "bg-lightblue text-lightwhite p-1 rounded-lg font-bold "
+                        : ""
+                    }}`}
+                  >
+                    {data?.chairman.brother.full_name}
+                  </Text>
+                </View>
+                <View className="flex-row items-center">
+                  <Text className={`font-bold text-lg `}>Chairman: </Text>
+                  <Text
+                    className={` ${
+                      data?.chairman.brother.full_name
+                        .toLowerCase()
+                        .includes(first_name?.toLowerCase())
+                        ? "bg-lightblue text-lightwhite rounded-lg font-bold p-1"
+                        : ""
+                    }`}
+                  >
+                    {data?.chairman.brother.full_name}
+                  </Text>
+                </View>
               </View>
-              <View className="flex-row items-center">
-                <Text className={`font-bold text-lg `}>Chairman: </Text>
+            </View>
+            <Text style={styles.sectionTitle}>Public Talk</Text>
+            <View className="flex-col justify-between back-g  p-4 rounded-xl">
+              <Text className="font-bold text-xl">
+                {data?.public_discourse.theme}
+              </Text>
+              <Text>{data?.public_discourse.speaker.brother.full_name}</Text>
+            </View>
+            <Text style={styles.sectionTitle}>Watchtower</Text>
+            <View className="flex-col justify-between back-g  p-4 gap-2 rounded-xl ">
+              <View className="justify-between  rounded-xl flex-col">
+                <Text className="font-bold text-xl ">
+                  {"Watchtower Conductor"}
+                </Text>
                 <Text
-                  className={` ${
-                    data.chairman.brother.full_name
+                  className={`${
+                    data?.watchtower.conductor.brother.full_name
                       .toLowerCase()
                       .includes(first_name?.toLowerCase())
-                      ? "bg-lightblue text-lightwhite rounded-lg font-bold p-1"
+                      ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold mb-1"
                       : ""
                   }`}
                 >
-                  {data.chairman.brother.full_name}
+                  {data?.watchtower.conductor.brother.full_name}
+                </Text>
+              </View>
+
+              <View className="flex-col justify-between">
+                <Text className="font-bold text-xl">Reader </Text>
+                <Text
+                  className={`${
+                    data?.watchtower.reader.full_name
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                      : ""
+                  }`}
+                >
+                  {data?.watchtower.reader.full_name}
                 </Text>
               </View>
             </View>
-          </View>
-          <Text style={styles.sectionTitle}>Public Talk</Text>
-          <View className="flex-col justify-between back-g  p-4 rounded-xl">
-            <Text className="font-bold text-xl">
-              {data.public_discourse.theme}
-            </Text>
-            <Text>{data.public_discourse.speaker.brother.full_name}</Text>
-          </View>
-          <Text style={styles.sectionTitle}>Watchtower</Text>
-          <View className="flex-col justify-between back-g  p-4 gap-2 rounded-xl ">
-            <View className="justify-between  rounded-xl flex-col">
-              <Text className="font-bold text-xl ">
-                {"Watchtower Conductor"}
-              </Text>
-              <Text
-                className={`${
-                  data.watchtower.conductor.brother.full_name
-                    .toLowerCase()
-                    .includes(first_name?.toLowerCase())
-                    ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold mb-1"
-                    : ""
-                }`}
-              >
-                {data.watchtower.conductor.brother.full_name}
-              </Text>
+            <Text style={styles.sectionTitle}>Closing</Text>
+            <View className="p-5 back-g rounded-xl flex-col">
+              <View className="flex-col  ">
+                <Text className={`font-bold text-lg `}>Closing Prayer </Text>
+                <Text
+                  className={` ${
+                    data?.closing_prayer.full_name
+                      .toLowerCase()
+                      .includes(first_name?.toLowerCase())
+                      ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
+                      : ""
+                  }`}
+                >
+                  {data?.closing_prayer.full_name.trim()}
+                </Text>
+              </View>
             </View>
-
-            <View className="flex-col justify-between">
-              <Text className="font-bold text-xl">Reader </Text>
-              <Text
-                className={`${
-                  data.watchtower.reader.full_name
-                    .toLowerCase()
-                    .includes(first_name?.toLowerCase())
-                    ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
-                    : ""
-                }`}
-              >
-                {data.watchtower.reader.full_name}
-              </Text>
+            <View className="border-hairline"></View>
+            <View>
+              <Text style={styles.sectionTitle}>Duties</Text>
+              <View className="p-5 bg-primary rounded-xl flex-col mt-4">
+                {renderDuties(data)}
+              </View>
             </View>
           </View>
-          <Text style={styles.sectionTitle}>Closing</Text>
-          <View className="p-5 back-g rounded-xl flex-col">
-            <View className="flex-col  ">
-              <Text className={`font-bold text-lg `}>Closing Prayer </Text>
-              <Text
-                className={` ${
-                  data.closing_prayer.full_name
-                    .toLowerCase()
-                    .includes(first_name?.toLowerCase())
-                    ? "bg-lightblue text-lightwhite p-2 rounded-lg font-bold"
-                    : ""
-                }`}
-              >
-                {data.closing_prayer.full_name.trim()}
-              </Text>
-            </View>
-          </View>
-          <View className="border-hairline"></View>
-          <View>
-            <Text style={styles.sectionTitle}>Duties</Text>
-            <View className="p-5 bg-primary rounded-xl flex-col mt-4">
-              {renderDuties()}
-            </View>
-          </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-  },
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",

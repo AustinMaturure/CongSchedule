@@ -39,7 +39,7 @@ const Upcoming = () => {
 
       if (userFirstName && accessToken) {
         const response = await axios.get<ScheduleItem[]>(
-          `http://192.168.110.250:8000/schedular/api/getuserschedule/${cleanedFirstName}/${cleanedLastName}`,
+          `https://congschedules.pythonanywhere.com/schedular/api/getuserschedule/${cleanedFirstName}/${cleanedLastName}`,
           {}
         );
         setScheduleData(response.data);
@@ -69,7 +69,6 @@ const Upcoming = () => {
     console.log(item);
     return (
       <View style={styles.scheduleItem}>
-        <StatusBar barStyle="light-content" />
         <View
           className="
         flex-row justify-between items-center mb-3"
@@ -141,10 +140,11 @@ const Upcoming = () => {
 
   return (
     <View style={styles.container} className="">
+      <StatusBar barStyle="light-content" />
       <Text style={styles.header}>Upcoming Schedule</Text>
       {scheduleData.length === 0 ? (
         <View style={styles.centeredContainer}>
-          <Text className="text-primary">No upcoming items</Text>
+          <Text className="text-primary">No upcoming parts</Text>
         </View>
       ) : (
         <FlatList
