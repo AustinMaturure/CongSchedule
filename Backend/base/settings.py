@@ -47,6 +47,7 @@ INSTALLED_APPS = [
      'rest_framework_simplejwt.token_blacklist',
     'dj_rest_auth',
     'corsheaders',
+    'django_celery_beat'
     
 ]
 
@@ -71,6 +72,8 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 ROOT_URLCONF = 'base.urls'
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 TEMPLATES = [
     {

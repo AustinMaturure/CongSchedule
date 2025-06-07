@@ -5,216 +5,331 @@ from pdfminer.high_level import extract_text, extract_pages
 from schedule.models import *
 from .serializers import *
 from rest_framework.exceptions import NotFound
-from datetime import datetime
-
+from datetime import datetime, timedelta
+import requests
+from google.oauth2 import service_account
+import google.auth.transport.requests
+from django.utils.timezone import now
 from collections import defaultdict
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+import os
 
+@api_view(['GET'])
+@permission_classes([AllowAny]) 
+def parse_new_schedule(request):
+    file_path = '/Users/austinematurure/Documents/CongSchedule/Backend/pdfs/Piet Retief  May 2025 Life and Ministry Meeting Schedule-.pdf'
+    text = extract_text(file_path)
+    print(text)
+    text = text.replace("\u2640", "")
+    text = text.replace("Printed", "")
+    schedule_entries = []
 
+    day_blocks = re.split(r'(?=\d{2} \w+ 2025)', text)
+
+    for block in day_blocks:
+        if not block.strip():
+            continue
+
+        date_match = re.match(r'(\d{2} \w+ 2025)', block)
+        date_str = date_match.group(1) if date_match else None
+        try:
+            date = datetime.strptime(date_str, "%d %B %Y").date() if date_str else None
+        except ValueError:
+            date = None
+
+        events = re.findall(r'(\d{2}:\d{2})(.*?)((?=\d{2}:\d{2})|(?=Review / Preview)|$)', block, re.DOTALL)
+
+        for time, content, _ in events:
+            content = content.strip()
+
+            song_match = re.match(r'Song (\d+)\s*-\s*(.+)', content)
+            if song_match:
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Song",
+                    "number": song_match.group(1),
+                    "title": song_match.group(2).strip()
+                })
+                continue
+
+            if content.startswith("Opening Prayer"):
+                name = content.replace("Opening Prayer", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Opening Prayer",
+                    "name": name
+                })
+                continue
+
+            if content.startswith("Closing Prayer"):
+                name = content.replace("Closing Prayer", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Closing Prayer",
+                    "name": name
+                })
+                continue
+
+            if "Chairman" in content:
+                parts = content.split("Chairman")
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Chairman",
+                    "name": parts[-1].strip()
+                })
+                continue
+
+            talk_match = re.match(r'\d+\.\s*(.*?)\s*\((\d+) min\.\)(.*)', content)
+            if talk_match:
+                title, duration, name = talk_match.groups()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Talk",
+                    "title": title.strip(),
+                    "duration": int(duration),
+                    "name": name.strip()
+                })
+                continue
+
+            if "Bible Reading" in content:
+                reader = content.replace("Bible Reading", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Bible Reading",
+                    "name": reader
+                })
+                continue
+
+            if any(keyword in content for keyword in ["Starting a Conversation", "Following Up", "Making Disciples", "Talk"]):
+                task_match = re.match(r'(.*?)\((\d+) min\.\)(.*)', content)
+                if task_match:
+                    task, duration, names = task_match.groups()
+                    schedule_entries.append({
+                        "date": str(date),
+                        "time": time,
+                        "type": task.strip(),
+                        "duration": int(duration),
+                        "name": names.strip()
+                    })
+                continue
+
+            if "Congregation Bible Study" in content:
+                study_match = re.search(r'Conductor\s+(.*?)\s+Reader\s+(.*)', content)
+                if study_match:
+                    conductor, reader = study_match.groups()
+                    schedule_entries.append({
+                        "date": str(date),
+                        "time": time,
+                        "type": "Congregation Bible Study",
+                        "conductor": conductor.strip(),
+                        "reader": reader.strip()
+                    })
+                continue
+
+       
+            schedule_entries.append({
+                "date": str(date),
+                "time": time,
+                "type": "Other",
+                "content": content
+            })
+    print(schedule_entries)
+    return Response({"done": schedule_entries}, status=404)
 
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny]) 
+@permission_classes([AllowAny])
 def makeSchedule(request):
-    file_path = ScheduleSource.objects.first().file.path
+    file_path = '/Users/austinematurure/Documents/CongSchedule/Backend/pdfs/Piet Retief  May 2025 Life and Ministry Meeting Schedule-.pdf'
     text = extract_text(file_path)
+    print(text)
     text = text.replace("\u2640", "")
     text = text.replace("Printed", "")
+    
+    schedule_entries = []
+    day_blocks = re.split(r'(?=\d{2} \w+ 2025)', text)
+    
+    for block in day_blocks:
+        if not block.strip():
+            continue
 
-    pattern = re.compile(r'(\d{2} \w+ \d{4})\s?\|\s?(.*?)(?=\d{2} \w+ \d{4}|$)', re.DOTALL)
-    dates = pattern.findall(text)
+        date_match = re.match(r'(\d{2} \w+ 2025)', block)
+        date_str = date_match.group(1) if date_match else None
+        try:
+            date = datetime.strptime(date_str, "%d %B %Y").date() if date_str else None
+        except ValueError:
+            date = None
+
+        events = re.findall(r'(\d{2}:\d{2})(.*?)((?=\d{2}:\d{2})|(?=Review / Preview)|$)', block, re.DOTALL)
+
+        for time, content, _ in events:
+            content = content.strip()
+
+            song_match = re.match(r'Song (\d+)\s*-\s*(.+)', content)
+            if song_match:
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Song",
+                    "number": song_match.group(1),
+                    "title": song_match.group(2).strip()
+                })
+                continue
+
+            if content.startswith("Opening Prayer"):
+                name = content.replace("Opening Prayer", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Opening Prayer",
+                    "name": name
+                })
+                continue
+
+            if content.startswith("Closing Prayer"):
+                name = content.replace("Closing Prayer", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Closing Prayer",
+                    "name": name
+                })
+                continue
+
+            if "Chairman" in content:
+                parts = content.split("Chairman")
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Chairman",
+                    "name": parts[-1].strip()
+                })
+                continue
+
+            talk_match = re.match(r'\d+\.\s*(.*?)\s*\((\d+) min\.\)(.*)', content)
+            if talk_match:
+                title, duration, name = talk_match.groups()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Talk",
+                    "title": title.strip(),
+                    "duration": int(duration),
+                    "name": name.strip()
+                })
+                continue
+
+            if "Bible Reading" in content:
+                reader = content.replace("Bible Reading", "").strip()
+                schedule_entries.append({
+                    "date": str(date),
+                    "time": time,
+                    "type": "Bible Reading",
+                    "name": reader
+                })
+                continue
+
+            if any(keyword in content for keyword in ["Starting a Conversation", "Following Up", "Making Disciples", "Talk"]):
+                task_match = re.match(r'(.*?)\((\d+) min\.\)(.*)', content)
+                if task_match:
+                    task, duration, names = task_match.groups()
+                    schedule_entries.append({
+                        "date": str(date),
+                        "time": time,
+                        "type": task.strip(),
+                        "duration": int(duration),
+                        "name": names.strip()
+                    })
+                continue
+
+            if "Congregation Bible Study" in content:
+                study_match = re.search(r'Conductor\s+(.*?)\s+Reader\s+(.*)', content)
+                if study_match:
+                    conductor, reader = study_match.groups()
+                    schedule_entries.append({
+                        "date": str(date),
+                        "time": time,
+                        "type": "Congregation Bible Study",
+                        "conductor": conductor.strip(),
+                        "reader": reader.strip()
+                    })
+                continue
+
+ 
+            schedule_entries.append({
+                "date": str(date),
+                "time": time,
+                "type": "Other",
+                "content": content
+            })
+    
+
     schedule = {}
+    for entry in schedule_entries:
+        date = entry["date"]
+        time = entry["time"]
+        type_ = entry["type"]
 
-    for dayindex, date in enumerate(dates):
-        print(f'\nday: {date[0]} ')
-        sch, created = Schedule.objects.get_or_create(date=date[0])
-        opening = Opening.objects.create(schedule=sch)
-        treasures_db = Treasures.objects.create(schedule=sch)
-        living_db = Living.objects.create(schedule=sch)
-        closing_db = Closing.objects.create(schedule=sch)
+
+        sch, created = Schedule.objects.get_or_create(date=date)
+        if type_ == "Song":
+            opening = Opening.objects.create(schedule=sch, opening_song=entry.get("title"))
+            day_schedule = {"Date": date, "Opening": {"Opening Song": entry.get("title")}}
+
+        elif type_ == "Opening Prayer":
+            opening_prayer = entry.get("name")
+            opening = Opening.objects.create(schedule=sch, opening_prayer=opening_prayer)
+            day_schedule["Opening"]["Opening Prayer"] = opening_prayer
         
-        day_schedule = {
-        "Date": date[0],
-        "Opening": {
-        },
-        "Treasures":{"Talk":{"Title":"", "Speaker":""}, "Spiritual Gems":{"Title":"", "Speaker":""}, "Bible Reading":""},
-        "Apply Yourself": {},
-        "Living as Christians": {},
-        "Closing":{}
-    }
-        pattern = re.compile(r'(Song \d{1,3} - [^0-9]+)(?=\s*Prayer)(.*?)(?=\d{1,2} [A-Za-z]+ \d{4}|$)(.*)')
-        content = re.findall(pattern, date[1])
+        elif type_ == "Closing Prayer":
+            closing_prayer = entry.get("name")
+            closing = Closing.objects.create(schedule=sch, closing_prayer=closing_prayer)
+            day_schedule["Closing"]["Closing Prayer"] = closing_prayer
 
-        for song in content:
-            print(f"Song: {song[0]}")
-            opening.opening_song = song[0]
-            
-            
-            pattern = re.compile(r'(Prayer([A-Za-z\s]+)(?=\d|[^\w\s]))', re.DOTALL)
-            day_schedule["Opening"]["Opening Song"] = song[0]
-
-            praying = re.search(pattern, song[1])
-            day_schedule["Opening"]["Opening Prayer"] = praying.group(2)
-            opening.opening_prayer=praying.group(2)
-            print(day_schedule)
-
-            cpattern = re.compile(r'Chairman([A-Za-z\s\']+)(?=Treasures from God\'s Word)', re.DOTALL)
-            chairman = re.search(cpattern, song[1])
-            print(f'Chairman: {chairman.group(1)}' )
-            day_schedule["Opening"]["Chairman"] = chairman.group(1)
-            opening.chairman = chairman.group(1)
-            opening.save()
-
-
-            tpattern = re.compile(r"Treasures from God's Word(.*?)Apply Yourself to the Field Ministry", re.DOTALL)
-            treasures = re.search(tpattern, song[1])
-          
-
-            ppattern = re.compile(r'([A-Za-z\s\'\""()?\-!:,;“”\d]+)(?=\(\d+ min\.\))(\(\d+ min\.\)(.*?)(?=\d{2}:\d{2}(\d+)))', re.DOTALL)
-            apply = re.findall(ppattern, treasures.group(1))
-
-            treasures_titles = ["Talk", "Spiritual Gems"]
-            
-            for index, app in enumerate(apply):
-                day_schedule["Treasures"][treasures_titles[index]]["Title"] = app[0]  
-                day_schedule["Treasures"][treasures_titles[index]]["Speaker"] = app[2]
-                treasures_talk = TreasuresTalk.objects.create(treasure_week=treasures_db, title=app[0])
-              
-                treasures_info= TreasuresTalkInfo.objects.create(talk=treasures_talk,speaker=app[2])
-                
-                
-
-
-                print(f'{treasures_titles[index]}: {app[0]} - {app[2]}')
-               
-
-            rpattern = re.compile(r"Bible Reading \(\d+ min\.\)(.*)", re.DOTALL)
-
-            biblereader = re.search(rpattern, treasures.group(1))
-            print(f'Bible Reading: {biblereader.group(1)}' )
-            treasures_db.bible_reading=biblereader.group(1)
-            treasures_db.save()
-            day_schedule['Treasures']['Bible Reading']=biblereader.group(1)
-
-            apattern = re.compile(r"Apply Yourself to the Field Ministry(.*?)Living as Christians", re.DOTALL)
-            students = re.search(apattern, song[1])
-
-            spattern = re.compile(r'([A-Za-z\s]+)(?=\(\d+ min\.\))(\(\d+ min\.\)([A-Za-z\s&]+)(?=(\d{2}:\d{2}(\d+))|Living as Christians))', re.DOTALL)
-            parts = re.findall(spattern, students.group(0))
-            
-
-            applyYourself= Apply.objects.create(schedule=sch)
-            for index, part in enumerate(parts):
-                
-                applyPart=ApplyPart.objects.create(apply_week=applyYourself, apply_part=part[0])
-                applyInfo=ApplyInfo.objects.create(part=applyPart, student=part[2], duration=part[1][:8])
-                day_schedule["Apply Yourself"][f'{part[0]} {index}'] = {}
-                day_schedule["Apply Yourself"][f'{part[0]} {index}']["Student"]=part[2]
-                day_schedule["Apply Yourself"][f'{part[0]} {index}']["Duration"]=part[1][:8]
-                print(f'{part[0]}: {part[2]} - {part[1][:8]}')
-
-
-            lacpattern =  re.compile(r'Living as Christians(.*)\d{2}:\d{2}Review / Preview / Announcements', re.DOTALL)
-            lac = re.search(lacpattern, song[1])
-    
-
-            lacspattern = re.compile(r'(Song \d{1,3}(?: - [^0-9]+)?)(?=\d{2}:\d{2})', re.DOTALL)
-
-            lacs = re.search(lacspattern, lac.group(1))
-     
-            print(f'Las Song: {lacs.group(1)}')
-            living_db.living_song = lacs.group(1)
-            day_schedule["Living as Christians"]["Song"]=lacs.group(1)
-            
-
-            lactalkspattern = re.compile(r'(\d{2}:\d{2}\d+\. )(.*?)(\(\d+ min\.\))([A-Za-z\s]+)', re.DOTALL)
-            lactalks = re.findall(lactalkspattern, lac.group(1))
-            living_db.save()
-
-            day_schedule["Living as Christians"]["Talks"]={}
-            if lactalks:
-                for  talk in lactalks:
-                    
-                    if "Congregation Bible Study" in talk[1]:
-                        bible_study = talk[3] 
-                        bstudy = BibleStudy.objects.create(section=living_db)
-                
-                        
-            
-                        conducterpattern = re.compile(r'Conductor([^0-9]+)(?=Reader)', re.DOTALL)
-                        conducter = re.search(conducterpattern, bible_study)
-                        
-      
-                        readerpattern = re.compile(r'Reader([^0-9]+)$', re.DOTALL)
-                        reader = re.search(readerpattern, bible_study)
-
-                        localneeds = re.compile(r'Local Needs \(\d+ min\.\)(.*?)\d{2}:\d{2}\d+', re.DOTALL)
-                        localneed = re.search(localneeds, lac.group(1))
-
-                        if localneed: 
-                            day_schedule["Living as Christians"]["Talks"]["Local Needs"]={}  
-                            day_schedule["Living as Christians"]["Talks"]["Local Needs"]["Speaker"]=localneed.group(1)   
-                            lneed=LivingTalk.objects.create(section=living_db, title="Local Needs")
-                            lneedinfo = LivingTalkInfo.objects.create(living_section=lneed, speaker=localneed.group(1))   
-                            print(f'Local Needs: {localneed.group(1)} ')  
-                        else:
-                            print("No match found for Local Needs.")
-                        
-           
-                        if conducter and reader:
-                            day_schedule["Living as Christians"]["Talks"]["Congregation Bible Study"]={}
-                            day_schedule["Living as Christians"]["Talks"]["Congregation Bible Study"]["Conductor"]=conducter.group(1).strip()
-                            day_schedule["Living as Christians"]["Talks"]["Congregation Bible Study"]["Reader"]=reader.group(1).strip()
-                            livingtalk= BibleStudy.objects.create(section=living_db)
-                            talkinfo = BibleStudyInfo.objects.create(living_section=bstudy, conductor=conducter.group(1).strip(), reader=reader.group(1).strip())
-                            print(f'Congregation Bible Study: Conductor - {conducter.group(1).strip()}, Reader - {reader.group(1).strip()}')
-                        else:
-                            print("Conductor or Reader information not found.")
-                        
-                        
-                        
-                        
-                  
-                    else:
-                        day_schedule["Living as Christians"]["Talks"][talk[1]]={}
-                        day_schedule["Living as Christians"]["Talks"][talk[1]]["Speaker"]=talk[3]
-                        day_schedule["Living as Christians"]["Talks"][talk[1]]["Duration"]=talk[2]
-                        ltalk = LivingTalk.objects.create(section=living_db, title=talk[1])
-                        talkinfo = LivingTalkInfo.objects.create(living_section=ltalk, speaker=talk[3], duration=talk[2])
-                        print(f'Talk: {talk[1]} - {talk[3]} - {talk[2]}')
-            else:
-                print("No talks found.")
-
-            endpattern = re.compile(r'Review / Preview / Announcements \(3 min\.\)\d{2}:\d{2}(Song \d{1,3} - [^0-9]+)(Prayer([A-Za-z\s]+))')
-
-            match = re.search(endpattern, song[1])
-            print(match.group(1))
-            day_schedule["Closing"]["Closing Song"] = match.group(1)
-            closing_db.closing_song = match.group(1)
-
-            praying = re.search(pattern, song[1])
-            
-            prayerpattern = re.compile(r'Prayer([A-Za-z\s]+)(\u2640|\x0c|\f)?[^A-Za-z\s]*')
-            prayer = match.group(2)
-            prayerclose = re.search(prayerpattern, prayer)
-
-
-            if prayerclose:
-                day_schedule["Closing"]["Closing Prayer"] = prayerclose.group(1)
-                print(f'Closing Prayer: {prayerclose.group(1)}')
-                closing_db.closing_prayer = prayerclose.group(1)
-            closing_db.save()
-            sch.save()
-        schedule[dayindex] = day_schedule
+        elif type_ == "Chairman":
+            chairman = entry.get("name")
+            opening = Opening.objects.create(schedule=sch, chairman=chairman)
+            day_schedule["Opening"]["Chairman"] = chairman
         
-        
-    
-    return Response({"done": "Schedule Added"}, status=404)
-    
+        elif type_ == "Talk":
+            talk_title = entry.get("title")
+            talk_speaker = entry.get("name")
+            talk_duration = entry.get("duration")
+            treasures = Treasures.objects.create(schedule=sch)
+            talk = TreasuresTalk.objects.create(treasure_week=treasures, title=talk_title)
+            talk_info = TreasuresTalkInfo.objects.create(talk=talk, speaker=talk_speaker)
+            day_schedule["Treasures"] = {"Talk": {"Title": talk_title, "Speaker": talk_speaker}}
+
+        elif type_ == "Bible Reading":
+            bible_reader = entry.get("name")
+            treasures = Treasures.objects.create(schedule=sch, bible_reading=bible_reader)
+            day_schedule["Treasures"]["Bible Reading"] = bible_reader
+
+        elif type_ == "Congregation Bible Study":
+            conductor = entry.get("conductor")
+            reader = entry.get("reader")
+            living = Living.objects.create(schedule=sch)
+            bible_study = BibleStudy.objects.create(section=living, conductor=conductor, reader=reader)
+            day_schedule["Living as Christians"] = {"Congregation Bible Study": {"Conductor": conductor, "Reader": reader}}
+
+        else:
+            print(f"Unknown type: {type_}")
+
+        schedule[date] = day_schedule
+
+    return Response(schedule, status=200)
+
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny]) 
@@ -282,7 +397,18 @@ def getSchedule(request, date):
     except Schedule.DoesNotExist:
         raise NotFound(detail="Schedule for the given week does not exist.")
     
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def getModified(request):
+   schedule = ScheduleSource.objects.first()
+   
+   if schedule and schedule.modified is True:
+        return Response({"is_modified": True}, status=status.HTTP_200_OK)
+   else:
+        return Response({"is_modified": False}, status=status.HTTP_200_OK)
+    
 
+    
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -577,3 +703,243 @@ def getUserSchedule(request, firstname, lastname):
     serializer = ScheduleResultSerializer(sorted_results, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+    
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
+SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, 'api', 'schedule-noti-firebase-adminsdk-fbsvc-06c190bc13.json')
+def get_access_token():
+    SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
+    
+
+    credentials = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_PATH, scopes=SCOPES
+    )
+    request = google.auth.transport.requests.Request()
+    credentials.refresh(request)
+
+    return credentials.token  
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def add_device(request):
+    username = request.data.get("username", None)
+    fcm_token = request.data.get("fcm_token")
+
+    if not fcm_token:
+        return Response({"error": "FCM token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    device, created = Device.objects.update_or_create(
+        fcm_token=fcm_token,
+        defaults={"username": username}
+    )
+
+    serializer = DeviceSerializer(device)
+    return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+def send_push(token, date, part_title ):
+
+    url = "https://exp.host/--/api/v2/push/send"
+    payload = {
+        "to": token,
+        "title": "Talk Reminder 🕓",
+        "body": f"{part_title} for the meeting this week, {date}.",
+        "priority": "high"
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        print(response.json())
+        return {"success": True, "response": response.json()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def sendAll(request):
+    devices = Device.objects.all()
+    url = "https://exp.host/--/api/v2/push/send"
+    headers = {"Content-Type": "application/json"}
+
+    results = []
+    for device in devices:
+        payload = {
+            "to": device.fcm_token,
+            "title": "Field Service Location Change 📍",
+            "body": "The field service group for tommorow will be at the kingdom hall 9:00 a.m",
+            "priority": "high"
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            results.append({"device": device.fcm_token, "response": response.json()})
+        except Exception as e:
+            results.append({"device": device.fcm_token, "error": str(e)})
+
+    return Response({"results": results})
+
+
+
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def send_weekly_talk_reminders(request):
+    today = datetime.now().date()
+    days_until_thursday = (3 - today.weekday()) % 7
+
+    if days_until_thursday == 0:
+        target_date = today
+    else:
+        target_date = today + timedelta(days=days_until_thursday)
+
+    target_date_str = target_date.strftime("%d %B %Y")
+    target_date_str = '26 June 2025'
+
+    schedules = Schedule.objects.filter(date=target_date_str)
+    serializer = ScheduleSerializer(schedules, many=True)
+    print(schedules)
+
+    notifications = []
+    missing_devices = set()
+    print(Device.objects.all())
+    
+    for schedule in schedules:
+        # --- Apply Yourself parts ---
+        apply_parts = ApplyInfo.objects.filter(part__apply_week__schedule=schedule)
+        for part in apply_parts:
+            full_names = [name.strip() for name in part.student.split(" & ") if name.strip()]
+            part_title = part.part.apply_part
+            duration = part.duration
+            if not full_names:
+                continue  
+
+            if len(full_names) == 1:
+                username = full_names[0]
+                device = Device.objects.filter(username=username).first()
+                
+                if not device:
+                    missing_devices.add(username)
+                    continue
+                
+                notifications.append({
+                    "username": device.username,
+                    "date": schedule.date,
+                    "part_title": f"You have the {part_title} {duration}",
+                    "status": "sent" if result["success"] else "failed",
+                    "error": result.get("error"),
+                })
+            elif len(full_names) == 2:
+                conductor, householder = full_names
+                for name in [conductor, householder]:
+                    username = name
+                    device = Device.objects.filter(username=username).first()
+                    if not device:
+                        missing_devices.add(username)
+                        continue
+                    is_conductor = username == conductor
+                    display_title = (
+                        f"You have the part \" {part_title} \"" if is_conductor else f"You are the householder for \" {part_title}"
+                    )
+                    with_whom = householder if is_conductor else conductor
+
+                    result = send_push(device.fcm_token, schedule.date, f"{display_title} {duration} with {with_whom}")
+                    notifications.append({
+                        "username": username,
+                        "date": schedule.date,
+                        "part_title": f"{display_title} {duration} with {with_whom}",
+                        "status": "sent" if result["success"] else "failed",
+                        "error": result.get("error"),
+                    })
+
+        # --- Treasures Talk parts ---
+        bible_reader = Treasures.objects.filter(schedule=schedule).first()
+        if bible_reader:
+            device = Device.objects.filter(username=bible_reader.bible_reading).first()
+            if device:
+                result = send_push(device.fcm_token, schedule.date, f'You have the Bible Reading 📖')
+                notifications.append({
+                    "username": device.username,
+                    "date": schedule.date,
+                    "part_title": f'You have the Bible Reading for this week 📖',
+                    "status": "sent" if result["success"] else "failed",
+                    "error": result.get("error")
+                })
+            else:
+                missing_devices.add(bible_reader.bible_reading)
+
+            treasure_parts = TreasuresTalkInfo.objects.filter(talk__treasure_week__schedule=schedule)
+            for part in treasure_parts:
+                username = part.speaker
+                device = Device.objects.filter(username=username).first()
+                if not device:
+                    missing_devices.add(username)
+                    continue
+
+                part_title = part.talk.title
+                result = send_push(device.fcm_token, schedule.date, f'You have the Treasures part " {part_title} " 💎')
+                notifications.append({
+                    "username": device.username,
+                    "date": schedule.date,
+                    "part_title": f'You have the Treasures part " {part_title} " 💎',
+                    "status": "sent" if result["success"] else "failed",
+                    "error": result.get("error")
+                })
+
+        # --- Living Talk parts ---
+        living_parts = LivingTalkInfo.objects.filter(living_section__section__schedule=schedule)
+        for part in living_parts:
+            username = part.speaker
+            part_title = part.living_section.title
+            device = Device.objects.filter(username=username).first()
+            if not device:
+                missing_devices.add(username)
+                continue
+
+            result = send_push(device.fcm_token, schedule.date, f"You have the Living As Christians part ' {part_title} '")
+            notifications.append({
+                "username": device.username,
+                "date": schedule.date,
+                "part_title": f"You have the Living As Christians part {part_title}",
+                "status": "sent" if result["success"] else "failed",
+                "error": result.get("error")
+            })
+
+        # --- Bible Study Conductors ---
+        bible_parts = BibleStudyInfo.objects.filter(living_section__section__schedule=schedule)
+        for part in bible_parts:
+            conductor = part.conductor
+            device = Device.objects.filter(username=conductor).first()
+            if device:
+                result = send_push(device.fcm_token, schedule.date, f"You are the conductor for the Congregation Bible Study")
+                notifications.append({
+                    "username": device.username,
+                    "date": schedule.date,
+                    "part_title": f"You are the conductor for the Congregation Bible Study",
+                    "status": "sent" if result["success"] else "failed",
+                    "error": result.get("error")
+                })
+            else:
+                missing_devices.add(conductor)
+
+            reader = part.reader
+            device = Device.objects.filter(username=reader).first()
+            if device:
+                result = send_push(device.fcm_token, schedule.date, f'You are the reader for the Congregation Bible Study')
+                notifications.append({
+                    "username": device.username,
+                    "date": schedule.date,
+                    "part_title": f'You are the reader for the Congregation Bible Study',
+                    "status": "sent" if result["success"] else "failed",
+                    "error": result.get("error")
+                })
+            else:
+                missing_devices.add(reader)
+
+    if missing_devices:
+        print(f"Warning: No devices found for usernames: {', '.join(missing_devices)}")
+
+    return Response({"notifications": notifications})

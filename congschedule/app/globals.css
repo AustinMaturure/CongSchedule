@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.back-g {
+  background-color: #f2f0ef;
+
+}
+.lgh{
+  background-color: #d1ddf0d2
+}
+.blk {
+  color: #1f1f1f;
+  background-color: #eacc0800;
+}
+
+.b-gr {
+  border-color: gray;
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

@@ -1,7 +1,10 @@
 from rest_framework import serializers
-from schedule.models import Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing, Duty, AssignedDuties, DutyAssignment, SundaySchedule, ApponitedBrother, PublicTalk, SundayDutyAssignment,WatchtowerStudy
+from schedule.models import Device, Schedule, Apply, ApplyPart, ApplyInfo, Living, Opening, Treasures, TreasuresTalk, TreasuresTalkInfo, BibleStudy, BibleStudyInfo, LivingTalk, LivingTalkInfo, Closing, Duty, AssignedDuties, DutyAssignment, SundaySchedule, ApponitedBrother, PublicTalk, SundayDutyAssignment,WatchtowerStudy
 
-
+class DeviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = ['username', 'fcm_token']
 
 
 class ApplyInfoSerializer(serializers.ModelSerializer):

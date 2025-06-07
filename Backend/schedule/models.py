@@ -3,9 +3,19 @@ from django.contrib.auth import get_user_model
 
 # Create your models here.
 
+
+class Device(models.Model):
+    username = models.CharField(max_length=150, null=True, blank=True)
+    fcm_token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.username or 'Anonymous'} - {self.fcm_token[:10]}..."
+
 class ScheduleSource(models.Model):
     file = models.FileField(upload_to="pdfs")
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    modified = models.BooleanField(default=False)
 
     def __str__(self):
         return self.file.name
@@ -18,10 +28,10 @@ class Schedule(models.Model):
 
 
 class Apply(models.Model):
-    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True) 
+    schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
     def __str__(self):
         return f"Apply Yourself to the Ministry for week of - {self.schedule.date}"
-    
+
 class ApplyPart(models.Model):
      apply_week = models.ForeignKey(Apply, on_delete=models.CASCADE)
      apply_part = models.CharField(max_length=255)
@@ -34,8 +44,8 @@ class ApplyInfo(models.Model):
     duration = models.CharField(max_length=255)
     def __str__(self):
         return f"{self.student} - {self.duration}"
-    
-    
+
+
 
 
 class Opening(models.Model):
@@ -45,7 +55,7 @@ class Opening(models.Model):
     chairman = models.CharField(max_length=255, null=True)
     def __str__(self):
         return f"Opening for week of {self.schedule.date}"
-    
+
 
 class Treasures(models.Model):
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
@@ -53,14 +63,14 @@ class Treasures(models.Model):
 
     def __str__(self):
         return f"Treasures for week of {self.schedule.date}"
-    
-    
+
+
 class TreasuresTalk(models.Model):
     treasure_week= models.ForeignKey(Treasures, on_delete=models.CASCADE, default="Talk")
     title =   models.CharField(max_length=255, null=True)
-    
+
     def __str__(self):
-        return f"{self.title} for {self.treasure_week.schedule.date}" 
+        return f"{self.title} for {self.treasure_week.schedule.date}"
 
 
 class TreasuresTalkInfo(models.Model):
@@ -81,7 +91,7 @@ class BibleStudy(models.Model):
     section = models.ForeignKey(Living, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     def __str__(self):
-        return self.title  
+        return self.title
 
 class BibleStudyInfo(models.Model):
     living_section = models.ForeignKey(BibleStudy, on_delete=models.CASCADE)
@@ -95,7 +105,7 @@ class LivingTalk(models.Model):
     section = models.ForeignKey(Living, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
     def __str__(self):
-        return self.title  
+        return self.title
 
 class LivingTalkInfo(models.Model):
     living_section = models.ForeignKey(LivingTalk, on_delete=models.CASCADE)
@@ -104,14 +114,14 @@ class LivingTalkInfo(models.Model):
 
     def __str__(self):
         return f"{self.speaker} - {self.duration}"
-    
+
 class Closing(models.Model):
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, null=True)
     closing_song = models.CharField(max_length=255, null=True)
     closing_prayer = models.CharField(max_length=255, null=True)
     def __str__(self):
         return f"Closing for week of {self.schedule.date}"
-    
+
 class Duty(models.Model):
     name = models.CharField(max_length=255)
 
@@ -139,7 +149,7 @@ class ApponitedBrother(models.Model):
     brother = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE)
     def __str__(self):
         return self.brother.full_name
-    
+
 class PublicTalk(models.Model):
     speaker = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE)
     theme = models.CharField(max_length=225)
@@ -147,12 +157,12 @@ class PublicTalk(models.Model):
         return f'{self.theme} - {self.speaker.brother.full_name}'
 
 class WatchtowerStudy(models.Model):
-  
+
     conductor = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
     reader = models.ForeignKey(AssignedDuties, on_delete=models.CASCADE, related_name='Reader')
     def __str__(self):
         return f'{self.conductor.brother.full_name} - {self.reader.full_name} '
-    
+
 class SundaySchedule(models.Model):
     date = models.CharField(max_length=255, null=True)
     chairman = models.ForeignKey(ApponitedBrother, on_delete=models.CASCADE, null=True)
@@ -172,7 +182,7 @@ class DutyAssignment(models.Model):
 
     def __str__(self):
         return f" {self.duty.name} for {self.schedule.date} : {self.assigned_duty.full_name} "
-    
+
 class SundayDutyAssignment(models.Model):
 
     schedule = models.ForeignKey(SundaySchedule, on_delete=models.CASCADE, null=True)

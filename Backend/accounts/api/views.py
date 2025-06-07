@@ -62,16 +62,17 @@ def Login(request):
     if request.method == 'POST':
         first_name = request.data.get('first_name')
         last_name = request.data.get('last_name')
+        password = request.data.get('password')
 
      
-        if not first_name or not last_name:
+        if not first_name or not last_name or not password:
             return Response({'message': 'First name and last name are required'}, status=status.HTTP_400_BAD_REQUEST)
 
   
         username = first_name +  last_name
         
       
-        user = authenticate(request, username=username)
+        user = authenticate(request, username=username, password=password)
 
         if user is not None:
            
@@ -82,7 +83,6 @@ def Login(request):
                 'user': {
                     'id': user.id,
                     'username': user.username,
-                    'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name
                 },
@@ -91,3 +91,5 @@ def Login(request):
             }, status=status.HTTP_200_OK)
         else:
             return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+ 
+

@@ -4,7 +4,7 @@ from django.db.models import Q
 
 # Register your models here.
 admin.site.register(ScheduleSource)
-
+admin.site.register(BibleStudy)
 admin.site.register(Schedule)
 admin.site.register(Opening)
 admin.site.register(Treasures)
@@ -46,3 +46,4 @@ admin.site.register(WatchtowerStudy, BrothersFilterAdmin)
 admin.site.register(PublicTalk)
 admin.site.register(ApponitedBrother, AppointedBrothersFilterAdmin)
 admin.site.register(SundaySchedule, BrothersFilterAdmin)
+admin.site.register(Device)
