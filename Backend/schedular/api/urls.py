@@ -10,6 +10,7 @@ urlpatterns = [
     path('getsunduties/<str:username>', views.getSun),
     path('getmodified/', views.getModified),
     path('notification/', views.send_weekly_talk_reminders),
+    path('dutyreminders/', views.send_weekly_duties_reminders),
     path('adddevice/', views.add_device),
     path('sendall/', views.sendAll),
 

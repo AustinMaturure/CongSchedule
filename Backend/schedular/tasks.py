@@ -50,3 +50,19 @@ def send_push(username, date, part_title):
         "title": "Talk Reminder ⏰",
         "message": f"You have the part '{part_title}' this week for the meeting on {date}."
     })
+def send_push(username, date, part_title):
+    """Send push notification via Native Notify."""
+    payload = {
+        "subID": username,
+        "appId": 30372,
+        "appToken": "V5RLQTBtFfP9XFGmASMHuo",
+        "title": "Talk Reminder 🕓",
+        "message": f"{part_title} for the meeting this week, {date}."
+    }
+    print(f"{part_title} for the meeting this week, {date}.")
+    try:
+        resp = requests.post("https://app.nativenotify.com/api/indie/notification", json=payload, timeout=5)
+        resp.raise_for_status()
+        return {"success": True, "response": resp.json()}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

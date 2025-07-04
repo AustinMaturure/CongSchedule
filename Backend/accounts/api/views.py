@@ -16,13 +16,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-
         token['first_name'] = user.first_name
         token['last_name'] = user.last_name
         token['password'] = user.password
         token['id'] = user.id
             
-        
         return token
     
 
@@ -55,6 +53,7 @@ def addUser(request):
       
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
