@@ -706,18 +706,6 @@ def getUserSchedule(request, firstname, lastname):
 
     
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) 
-SERVICE_ACCOUNT_PATH = os.path.join(BASE_DIR, 'api', 'schedule-noti-firebase-adminsdk-fbsvc-06c190bc13.json')
-def get_access_token():
-    SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
-    
-
-    credentials = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_PATH, scopes=SCOPES
-    )
-    request = google.auth.transport.requests.Request()
-    credentials.refresh(request)
-
-    return credentials.token  
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -736,27 +724,50 @@ def add_device(request):
     serializer = DeviceSerializer(device)
     return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
-def send_push(token, date, part_title, title ):
+def send_push(token, date, part_title, title="Talk Reminder 🕓"):
+    today = datetime.now().date()
+    dt = datetime.strptime(date, "%d %B %Y").date()
+    difference = (dt - today).days
+
+    meeting_date = "this week"
+
+    match difference:
+        case 0:
+            meeting_date = "today"
+            title = "Talk Reminder 📢"
+        case 1:
+            meeting_date = "tomorrow"
+        case d if d >= 5:
+            meeting_date = "next week"
 
     url = "https://exp.host/--/api/v2/push/send"
     payload = {
         "to": token,
         "title": title,
-        "body": f"{part_title} for the meeting this week, {date}.",
+        "body": f"{part_title} for the meeting {meeting_date}, {date}.",
         "priority": "high"
     }
 
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        print(payload)
-        print(response.json())
-        return {"success": True, "response": response.json()}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return {
+            "success": True,
+            "status": response.status_code,
+            "data": data,
+            "payload": payload
+        }
+    except requests.exceptions.RequestException as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "payload": payload
+        }
+
+
     
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -766,12 +777,14 @@ def sendAll(request):
     headers = {"Content-Type": "application/json"}
 
     results = []
+    title='New Schedule Available'
+    text='A new schedule is available. Tap to view'
     
     for device in devices:
         payload = {
             "to": device.fcm_token,
-            "title": "Field Service Location for Sunday 📍",
-            "body": "The field service group for tomorrow is at the KINGDOM HALL, 9 a.m",
+            "title": title,
+            "body": text,
             "priority": "high"
         }
         
@@ -783,6 +796,7 @@ def sendAll(request):
             results.append({"device": device.fcm_token, "error": str(e)})
 
     return Response({"results": results})
+    
 
 def getThursday():
     today = datetime.now().date()
@@ -846,6 +860,8 @@ def send_weekly_duties_reminders(request):
 def send_weekly_talk_reminders(request):
     
     target_date_str = getThursday()
+    
+    
     schedules = Schedule.objects.filter(date=target_date_str)
     serializer = ScheduleSerializer(schedules, many=True)
     print(schedules)
@@ -853,8 +869,6 @@ def send_weekly_talk_reminders(request):
     notifications = []
     missing_devices = set()
     print(Device.objects.all())
-
-    title = "Talk Reminder 🕓"
     
     for schedule in schedules:
         # --- Apply Yourself parts ---
@@ -875,13 +889,7 @@ def send_weekly_talk_reminders(request):
                     missing_devices.add(username)
                     continue
                 
-                notifications.append({
-                    "username": device.username,
-                    "date": schedule.date,
-                    "part_title": f"Hi {device.username}, reminder that you have the {part_title} {duration}",
-                    "status": "sent" if result["success"] else "failed",
-                    "error": result.get("error"),
-                })
+                notifications.append(result)
             elif len(full_names) == 2:
                 conductor, householder = full_names
                 for name in [conductor, householder]:
@@ -897,28 +905,16 @@ def send_weekly_talk_reminders(request):
                     )
                     with_whom = householder if is_conductor else conductor
 
-                    result = send_push(device.fcm_token, schedule.date, f"{display_title} {duration} with {with_whom}", title)
-                    notifications.append({
-                        "username": username,
-                        "date": schedule.date,
-                        "part_title": f"{display_title} {duration} with {with_whom}",
-                        "status": "sent" if result["success"] else "failed",
-                        "error": result.get("error"),
-                    })
+                    result = send_push(device.fcm_token, schedule.date, f"{display_title} {duration} with {with_whom}")
+                    notifications.append(result)
 
         # --- Treasures Talk parts ---
         bible_reader = Treasures.objects.filter(schedule=schedule).first()
         if bible_reader:
             device = Device.objects.filter(username=bible_reader.bible_reading).first()
             if device:
-                result = send_push(device.fcm_token, schedule.date, f'You have the Bible Reading 📖', title)
-                notifications.append({
-                    "username": device.username,
-                    "date": schedule.date,
-                    "part_title": f'You have the Bible Reading for this week 📖',
-                    "status": "sent" if result["success"] else "failed",
-                    "error": result.get("error")
-                })
+                result = send_push(device.fcm_token, schedule.date, f'You have the Bible Reading 📖')
+                notifications.append(result)
             else:
                 missing_devices.add(bible_reader.bible_reading)
 
@@ -931,14 +927,8 @@ def send_weekly_talk_reminders(request):
                     continue
 
                 part_title = part.talk.title
-                result = send_push(device.fcm_token, schedule.date, f'You have the Treasures 💎 part " {part_title} " ', title)
-                notifications.append({
-                    "username": device.username,
-                    "date": schedule.date,
-                    "part_title": f'You have the Treasures part " {part_title} " 💎',
-                    "status": "sent" if result["success"] else "failed",
-                    "error": result.get("error")
-                })
+                result = send_push(device.fcm_token, schedule.date, f'You have the Treasures 💎 part " {part_title} " ')
+                notifications.append(result)
 
         # --- Living Talk parts ---
         living_parts = LivingTalkInfo.objects.filter(living_section__section__schedule=schedule)
@@ -950,14 +940,8 @@ def send_weekly_talk_reminders(request):
                 missing_devices.add(username)
                 continue
             first_name = device.username.split(' ')[0] if device.username else ''
-            result = send_push(device.fcm_token, schedule.date, f"Hi {first_name}, You have the Living As Christians part ' {part_title} '", title)
-            notifications.append({
-                "username": device.username,
-                "date": schedule.date,
-                "part_title": f"You have the Living As Christians part {part_title}",
-                "status": "sent" if result["success"] else "failed",
-                "error": result.get("error")
-            })
+            result = send_push(device.fcm_token, schedule.date, f"Hi {first_name}, You have the Living As Christians part ' {part_title} '")
+            notifications.append(result)
 
         # --- Bible Study Conductors ---
         bible_parts = BibleStudyInfo.objects.filter(living_section__section__schedule=schedule)
@@ -966,14 +950,8 @@ def send_weekly_talk_reminders(request):
             device = Device.objects.filter(username=conductor).first()
             if device:
                 first_name = device.username.split(' ')[0] if device.username else ''
-                result = send_push(device.fcm_token, schedule.date, f"Hi {first_name}, You are the conductor for the Congregation Bible Study 📚", title)
-                notifications.append({
-                    "username": device.username,
-                    "date": schedule.date,
-                    "part_title": f"You are the conductor for the Congregation Bible Study",
-                    "status": "sent" if result["success"] else "failed",
-                    "error": result.get("error")
-                })
+                result = send_push(device.fcm_token, schedule.date, f"Hi {first_name}, You are the conductor for the Congregation Bible Study 📚")
+                notifications.append(result)
             else:
                 missing_devices.add(conductor)
 
@@ -981,18 +959,13 @@ def send_weekly_talk_reminders(request):
             device = Device.objects.filter(username=reader).first()
             if device:
                 first_name = device.username.split(' ')[0] if device.username else ''
-                result = send_push(device.fcm_token, schedule.date, f'Hi {first_name}, you are the reader for the Congregation Bible Study', title)
-                notifications.append({
-                    "username": device.username,
-                    "date": schedule.date,
-                    "part_title": f'You are the reader for the Congregation Bible Study',
-                    "status": "sent" if result["success"] else "failed",
-                    "error": result.get("error")
-                })
+                result = send_push(device.fcm_token, schedule.date, f'Hi {first_name}, you are the reader for the Congregation Bible Study')
+                notifications.append(result)
             else:
                 missing_devices.add(reader)
 
     if missing_devices:
         print(f"Warning: No devices found for usernames: {', '.join(missing_devices)}")
+    print(notifications)
 
     return Response({"notifications": notifications})
